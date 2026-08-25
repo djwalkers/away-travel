@@ -18,10 +18,14 @@ import {
   Trash2,
   X,
   Users,
-  Banknote
+  Banknote,
+  ChevronDown,
+  ChevronUp,
+  UserPlus,
+  Phone,
+  Mail
 } from 'lucide-react'
 
-// Standard Salop pickup stops pool with relative time offsets (in minutes)
 const MASTER_PICKUP_STOPS = [
   { name: 'Croud Meadow (Main Stand)', minuteOffset: 0, defaultChecked: true },
   { name: 'Harlescott (Tesco Express / Layby)', minuteOffset: 15, defaultChecked: true },
@@ -38,11 +42,21 @@ export default function AdminFixturesPage() {
   const [syncing, setSyncing] = useState(false)
   const [syncStatus, setSyncStatus] = useState<string | null>(null)
 
-  // Release Modal State
+  // Modals & Drawers
   const [selectedFixture, setSelectedFixture] = useState<any | null>(null)
   const [departureTime, setDepartureTime] = useState<string>('09:30')
   const [coachCapacity, setCoachCapacity] = useState<number>(53)
   const [releasing, setReleasing] = useState(false)
+
+  // Waiting List Modal State
+  const [viewingWaitingListFixture, setViewingWaitingListFixture] = useState<any | null>(null)
+  const [waitingList, setWaitingList] = useState<any[]>([])
+  const [loadingWaitlist, setLoadingWaitlist] = useState(false)
+
+  // Add Coach Modal State
+  const [addingCoachFixture, setAddingCoachFixture] = useState<any | null>(null)
+  const [newCoachCapacity, setNewCoachCapacity] = useState<number>(53)
+  const [addingCoach, setAddingCoach] = useState(false)
 
   // Pricing Tiers State
   const [pricingTiers, setPricingTiers] = useState([
@@ -51,7 +65,6 @@ export default function AdminFixturesPage() {
     { tier_name: 'Junior (Under 18)', standard_price: 12, member_price: 10, enabled: true }
   ])
 
-  // Pickups State
   const [pickupOptions, setPickupOptions] = useState<any[]>([])
   const [customStopName, setCustomStopName] = useState('')
 
@@ -76,7 +89,12 @@ export default function AdminFixturesPage() {
           id,
           coach_number,
           seat_capacity,
+          is_active,
           bookings (id, payment_status)
+        ),
+        waiting_list (
+          id,
+          seats_requested
         )
       `)
       .order('match_date', { ascending: true })
@@ -101,7 +119,6 @@ export default function AdminFixturesPage() {
     }
   }
 
-  // Calculate adjusted time string (HH:mm) from base time + offset minutes
   const calculateOffsetTime = (baseTime: string, offsetMinutes: number) => {
     const [h, m] = baseTime.split(':').map(Number)
     const date = new Date()
@@ -114,7 +131,6 @@ export default function AdminFixturesPage() {
     const baseDep = fixture.departure_time?.slice(0, 5) || '09:30'
     setDepartureTime(baseDep)
 
-    // Pre-populate pickup options with calculated times
     const initialPickups = MASTER_PICKUP_STOPS.map((stop, idx) => ({
       id: `stop_${idx}`,
       name: stop.name,
@@ -124,7 +140,6 @@ export default function AdminFixturesPage() {
     setPickupOptions(initialPickups)
   }
 
-  // Handle base departure time change -> recalibrate stops
   const handleDepartureChange = (newBaseTime: string) => {
     setDepartureTime(newBaseTime)
     setPickupOptions((prev) =>
@@ -156,7 +171,6 @@ export default function AdminFixturesPage() {
     e.preventDefault()
     if (!selectedFixture) return
 
-    // Filter active tiers & pickups
     const activeTiers = pricingTiers
       .filter((t) => t.enabled)
       .map((t) => ({
@@ -205,11 +219,48 @@ export default function AdminFixturesPage() {
     }
   }
 
+  // Add Additional Coach (Coach 2, 3...)
+  const handleAddNewCoach = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!addingCoachFixture) return
+
+    setAddingCoach(true)
+    try {
+      const { error } = await supabase.rpc('add_fixture_coach', {
+        p_fixture_id: addingCoachFixture.id,
+        p_seat_capacity: newCoachCapacity
+      })
+
+      if (error) throw error
+
+      setAddingCoachFixture(null)
+      loadDashboard()
+    } catch (err: any) {
+      alert('Error adding coach: ' + err.message)
+    } finally {
+      setAddingCoach(false)
+    }
+  }
+
+  // Load Waiting List for a Fixture
+  const openWaitingList = async (fixture: any) => {
+    setViewingWaitingListFixture(fixture)
+    setLoadingWaitlist(true)
+    const { data } = await supabase
+      .from('waiting_list')
+      .select('*')
+      .eq('fixture_id', fixture.id)
+      .order('created_at', { ascending: true })
+
+    setWaitingList(data || [])
+    setLoadingWaitlist(false)
+  }
+
   return (
     <main className="min-h-screen bg-[#070b14] text-slate-100 p-6 md:p-12">
       <div className="max-w-6xl mx-auto space-y-8">
         
-        {/* Header with Auto-Sync Control */}
+        {/* Top Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#1a2742] pb-6">
           <div>
             <div className="flex items-center gap-2">
@@ -222,7 +273,7 @@ export default function AdminFixturesPage() {
               Matchday Travel Operations
             </h1>
             <p className="text-slate-400 text-xs mt-0.5">
-              Manage coach manifests, auto-sync league fixtures, and release away coach bookings.
+              Manage coach manifests, add extra coaches, monitor waiting lists, and auto-sync fixtures.
             </p>
           </div>
 
@@ -256,83 +307,133 @@ export default function AdminFixturesPage() {
           <div className="divide-y divide-[#1a2742]">
             {fixtures.length === 0 ? (
               <div className="p-12 text-center text-slate-500 text-sm">
-                No fixtures in database. Click &quot;Auto-Sync League Fixtures&quot; above to import the schedule!
+                No fixtures found. Click &quot;Auto-Sync League Fixtures&quot; above to import!
               </div>
             ) : (
               fixtures.map((f) => {
-                const totalBooked = (f.coaches || []).reduce(
+                const activeCoaches = (f.coaches || []).filter((c: any) => c.is_active)
+                const totalCapacity = activeCoaches.reduce((sum: number, c: any) => sum + c.seat_capacity, 0)
+                const totalBooked = activeCoaches.reduce(
                   (sum: number, c: any) =>
                     sum + (c.bookings?.filter((b: any) => b.payment_status !== 'cancelled').length || 0),
                   0
                 )
-                const coachCount = f.coaches?.length || 0
+                const waitlistTotalSeats = (f.waiting_list || []).reduce(
+                  (sum: number, w: any) => sum + (w.seats_requested || 1),
+                  0
+                )
 
                 return (
-                  <div key={f.id} className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-[#0e1726]/40 transition">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg font-black text-white">{f.opponent}</span>
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                          f.is_released
-                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                            : 'bg-amber-500/10 text-[#ffc72c] border border-[#ffc72c]/30'
-                        }`}>
-                          {f.is_released ? '✓ Travel Released' : 'Draft / Unreleased'}
-                        </span>
+                  <div key={f.id} className="p-5 flex flex-col gap-4 hover:bg-[#0e1726]/30 transition">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg font-black text-white">{f.opponent}</span>
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                            f.is_released
+                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                              : 'bg-amber-500/10 text-[#ffc72c] border border-[#ffc72c]/30'
+                          }`}>
+                            {f.is_released ? '✓ Travel Released' : 'Draft / Unreleased'}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400 mt-1">
+                          <span>{f.venue}</span>
+                          <span>•</span>
+                          <span>
+                            {new Date(f.match_date).toLocaleDateString('en-GB', {
+                              timeZone: 'Europe/London',
+                              weekday: 'short',
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric'
+                            })}
+                          </span>
+                          <span>•</span>
+                          <span>KO: {f.kickoff_time?.slice(0, 5)}</span>
+                        </div>
                       </div>
-                      <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400 mt-1">
-                        <span>{f.venue}</span>
-                        <span>•</span>
-                        <span>
-                          {new Date(f.match_date).toLocaleDateString('en-GB', {
-                            timeZone: 'Europe/London',
-                            weekday: 'short',
-                            day: 'numeric',
-                            month: 'short',
-                            year: 'numeric'
-                          })}
-                        </span>
-                        <span>•</span>
-                        <span>KO: {f.kickoff_time?.slice(0, 5)}</span>
-                      </div>
-                    </div>
 
-                    <div className="flex items-center gap-3">
-                      {f.is_released ? (
-                        <>
-                          <div className="text-right text-xs pr-2 hidden sm:block">
-                            <span className="text-slate-400 block">{coachCount} Coach(es)</span>
-                            <strong className="text-emerald-400">{totalBooked} Booked</strong>
-                          </div>
+                      <div className="flex flex-wrap items-center gap-2.5">
+                        {f.is_released ? (
+                          <>
+                            {/* Waiting List Badge / Button */}
+                            {waitlistTotalSeats > 0 && (
+                              <button
+                                onClick={() => openWaitingList(f)}
+                                className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs font-bold text-[#ffc72c] hover:bg-amber-500/20 transition"
+                              >
+                                <UserPlus className="h-3.5 w-3.5" />
+                                Waitlist ({waitlistTotalSeats})
+                              </button>
+                            )}
 
-                          {f.coaches?.[0]?.id && (
-                            <Link
-                              href={`/admin/manifest/${f.coaches[0].id}`}
-                              className="inline-flex items-center gap-1.5 rounded-xl border border-[#1a2742] bg-[#0e1726] px-3.5 py-2 text-xs font-bold text-white hover:bg-[#1a2742] transition"
+                            {/* Add Additional Coach Button */}
+                            <button
+                              onClick={() => setAddingCoachFixture(f)}
+                              className="inline-flex items-center gap-1.5 rounded-xl border border-[#1a2742] bg-[#0e1726] px-3 py-2 text-xs font-bold text-white hover:bg-[#1a2742] transition"
                             >
-                              <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-400" />
-                              Manifest
-                            </Link>
-                          )}
+                              <Plus className="h-3.5 w-3.5 text-[#ffc72c]" />
+                              Add Coach
+                            </button>
 
-                          <Link
-                            href={`/admin/fixtures/${f.id}/pickups`}
-                            className="inline-flex items-center gap-1.5 rounded-xl border border-[#1a2742] bg-[#0e1726] px-3.5 py-2 text-xs font-bold text-[#ffc72c] hover:bg-[#1a2742] transition"
+                            {/* Stops Management Button */}
+                            <Link
+                              href={`/admin/fixtures/${f.id}/pickups`}
+                              className="inline-flex items-center gap-1.5 rounded-xl border border-[#1a2742] bg-[#0e1726] px-3 py-2 text-xs font-bold text-[#ffc72c] hover:bg-[#1a2742] transition"
+                            >
+                              <Navigation className="h-3.5 w-3.5" />
+                              Stops
+                            </Link>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => openReleaseModal(f)}
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-[#ffc72c] px-4 py-2 text-xs font-black text-[#070b14] hover:bg-[#e6b022] transition shadow-lg"
                           >
-                            <Navigation className="h-3.5 w-3.5" />
-                            Stops
-                          </Link>
-                        </>
-                      ) : (
-                        <button
-                          onClick={() => openReleaseModal(f)}
-                          className="inline-flex items-center gap-1.5 rounded-xl bg-[#ffc72c] px-4 py-2 text-xs font-black text-[#070b14] hover:bg-[#e6b022] transition shadow-lg"
-                        >
-                          <Send className="h-3.5 w-3.5" />
-                          Release Coach Travel
-                        </button>
-                      )}
+                            <Send className="h-3.5 w-3.5" />
+                            Release Coach Travel
+                          </button>
+                        )}
+                      </div>
                     </div>
+
+                    {/* Multi-Coach Fleet Overview for Released Matches */}
+                    {f.is_released && activeCoaches.length > 0 && (
+                      <div className="pt-3 border-t border-[#1a2742]/60 grid sm:grid-cols-2 md:grid-cols-3 gap-3">
+                        {activeCoaches.map((c: any) => {
+                          const coachBooked = (c.bookings || []).filter(
+                            (b: any) => b.payment_status !== 'cancelled'
+                          ).length
+                          const coachLeft = Math.max(0, c.seat_capacity - coachBooked)
+
+                          return (
+                            <div key={c.id} className="rounded-xl border border-[#1a2742] bg-[#070b14] p-3 flex items-center justify-between">
+                              <div>
+                                <div className="flex items-center gap-1.5 font-bold text-xs text-white">
+                                  <Bus className="h-3.5 w-3.5 text-[#ffc72c]" />
+                                  Coach {c.coach_number}
+                                </div>
+                                <div className="text-[11px] text-slate-400 mt-0.5">
+                                  {coachBooked} / {c.seat_capacity} Booked •{' '}
+                                  <strong className={coachLeft === 0 ? 'text-rose-400' : 'text-emerald-400'}>
+                                    {coachLeft === 0 ? 'FULL' : `${coachLeft} left`}
+                                  </strong>
+                                </div>
+                              </div>
+
+                              <Link
+                                href={`/admin/manifest/${c.id}`}
+                                className="inline-flex items-center gap-1 rounded-lg bg-[#0e1726] border border-[#1a2742] px-2.5 py-1 text-[11px] font-bold text-white hover:bg-[#1a2742] transition"
+                              >
+                                <FileSpreadsheet className="h-3 w-3 text-emerald-400" />
+                                Manifest
+                              </Link>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
                 )
               })
@@ -340,7 +441,7 @@ export default function AdminFixturesPage() {
           </div>
         </div>
 
-        {/* Enhanced Release Modal */}
+        {/* Release Modal */}
         {selectedFixture && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
             <div className="w-full max-w-2xl my-8 rounded-2xl border border-[#1a2742] bg-[#0a1220] p-6 shadow-2xl space-y-6">
@@ -361,7 +462,6 @@ export default function AdminFixturesPage() {
               </div>
 
               <form onSubmit={handleConfirmRelease} className="space-y-6">
-                {/* 1. Coach & Time Setup */}
                 <div className="grid grid-cols-2 gap-4 rounded-xl border border-[#1a2742] bg-[#0e1726] p-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-300 mb-1.5 flex items-center gap-1.5">
@@ -394,14 +494,11 @@ export default function AdminFixturesPage() {
                   </div>
                 </div>
 
-                {/* 2. Pricing Tiers Setup (Adult, Concession, Junior) */}
                 <div className="rounded-xl border border-[#1a2742] bg-[#0e1726] p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-white flex items-center gap-1.5 uppercase tracking-wider">
-                      <Banknote className="h-3.5 w-3.5 text-[#ffc72c]" />
-                      Pricing Tiers (Standard vs Member)
-                    </label>
-                  </div>
+                  <label className="text-xs font-bold text-white flex items-center gap-1.5 uppercase tracking-wider">
+                    <Banknote className="h-3.5 w-3.5 text-[#ffc72c]" />
+                    Pricing Tiers (Standard vs Member)
+                  </label>
 
                   <div className="space-y-2.5">
                     {pricingTiers.map((tier, idx) => (
@@ -454,7 +551,6 @@ export default function AdminFixturesPage() {
                   </div>
                 </div>
 
-                {/* 3. Checkbox Pickup Stops Selector */}
                 <div className="rounded-xl border border-[#1a2742] bg-[#0e1726] p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-bold text-white flex items-center gap-1.5 uppercase tracking-wider">
@@ -511,7 +607,6 @@ export default function AdminFixturesPage() {
                     ))}
                   </div>
 
-                  {/* Add Custom Stop Inline */}
                   <div className="pt-2 flex items-center gap-2">
                     <input
                       type="text"
@@ -531,7 +626,6 @@ export default function AdminFixturesPage() {
                   </div>
                 </div>
 
-                {/* Modal Actions */}
                 <div className="pt-2 border-t border-[#1a2742] flex justify-end gap-3">
                   <button
                     type="button"
@@ -549,6 +643,142 @@ export default function AdminFixturesPage() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Add Additional Coach Modal */}
+        {addingCoachFixture && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <div className="w-full max-w-md rounded-2xl border border-[#1a2742] bg-[#0a1220] p-6 shadow-2xl space-y-4">
+              <div className="flex items-center justify-between border-b border-[#1a2742] pb-3">
+                <div>
+                  <span className="text-xs font-bold uppercase text-[#ffc72c]">Fleet Expansion</span>
+                  <h3 className="text-lg font-black text-white">Add Extra Coach (vs {addingCoachFixture.opponent})</h3>
+                </div>
+                <button
+                  onClick={() => setAddingCoachFixture(null)}
+                  className="text-slate-400 hover:text-white"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleAddNewCoach} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                    Coach Seat Capacity (e.g. 53-seater)
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min={16}
+                    max={85}
+                    value={newCoachCapacity}
+                    onChange={(e) => setNewCoachCapacity(Number(e.target.value))}
+                    className="w-full rounded-xl border border-[#1a2742] bg-[#070b14] px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffc72c]"
+                  />
+                </div>
+
+                <div className="pt-2 border-t border-[#1a2742] flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAddingCoachFixture(null)}
+                    className="rounded-xl border border-[#1a2742] bg-[#0e1726] px-4 py-2 text-xs font-semibold text-slate-300 hover:text-white"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={addingCoach}
+                    className="rounded-xl bg-[#ffc72c] px-5 py-2 text-xs font-black text-[#070b14] hover:bg-[#e6b022] transition shadow-lg"
+                  >
+                    {addingCoach ? 'Adding Coach...' : 'Add Coach to Fleet'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Waiting List Viewer Drawer / Modal */}
+        {viewingWaitingListFixture && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <div className="w-full max-w-2xl rounded-2xl border border-[#1a2742] bg-[#0a1220] p-6 shadow-2xl space-y-4 max-h-[85vh] flex flex-col">
+              <div className="flex items-center justify-between border-b border-[#1a2742] pb-3 shrink-0">
+                <div>
+                  <span className="text-xs font-bold uppercase text-[#ffc72c]">Matchday Waiting List</span>
+                  <h3 className="text-xl font-black text-white">vs {viewingWaitingListFixture.opponent}</h3>
+                </div>
+                <button
+                  onClick={() => setViewingWaitingListFixture(null)}
+                  className="text-slate-400 hover:text-white"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto divide-y divide-[#1a2742]">
+                {loadingWaitlist ? (
+                  <div className="p-8 text-center text-slate-400">Loading waiting list...</div>
+                ) : waitingList.length === 0 ? (
+                  <div className="p-8 text-center text-slate-500">No supporters on the waiting list yet.</div>
+                ) : (
+                  waitingList.map((item, idx) => (
+                    <div key={item.id} className="p-4 flex items-center justify-between">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-white text-sm">
+                            {idx + 1}. {item.supporter_name}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full bg-[#ffc72c]/10 text-[#ffc72c] border border-[#ffc72c]/30 text-[10px] font-bold">
+                            {item.seats_requested} seat(s) requested
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400 mt-1">
+                          <span className="flex items-center gap-1">
+                            <Phone className="h-3 w-3 text-emerald-400" />
+                            {item.contact_phone}
+                          </span>
+                          {item.contact_email && (
+                            <span className="flex items-center gap-1">
+                              <Mail className="h-3 w-3 text-blue-400" />
+                              {item.contact_email}
+                            </span>
+                          )}
+                          <span>Pickup: {item.pickup_point}</span>
+                        </div>
+                      </div>
+
+                      <span className="text-[11px] text-slate-500">
+                        {new Date(item.created_at).toLocaleDateString('en-GB', {
+                          day: 'numeric',
+                          month: 'short'
+                        })}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="pt-3 border-t border-[#1a2742] flex justify-between items-center shrink-0">
+                <span className="text-xs text-slate-400">
+                  Total waiting:{' '}
+                  <strong className="text-[#ffc72c]">
+                    {waitingList.reduce((s, w) => s + (w.seats_requested || 1), 0)} seats
+                  </strong>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAddingCoachFixture(viewingWaitingListFixture)
+                    setViewingWaitingListFixture(null)
+                  }}
+                  className="rounded-xl bg-[#ffc72c] px-4 py-2 text-xs font-black text-[#070b14] hover:bg-[#e6b022] transition shadow-lg"
+                >
+                  + Add Next Coach
+                </button>
+              </div>
             </div>
           </div>
         )}
