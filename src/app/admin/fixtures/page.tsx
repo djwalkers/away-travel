@@ -94,10 +94,11 @@ export default function AdminFixturesPage() {
     try {
       const res = await fetch('/api/sync-fixtures')
       const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to sync')
       setSyncStatus(data.message || 'Fixtures synced successfully!')
       loadDashboard()
-    } catch (err) {
-      setSyncStatus('Failed to sync remote fixture feed.')
+    } catch (err: any) {
+      setSyncStatus(err.message || 'Failed to sync remote fixture feed.')
     } finally {
       setSyncing(false)
     }
@@ -114,67 +115,18 @@ export default function AdminFixturesPage() {
 
     setReleasing(true)
 
-    const route = routes.find((r) => r.id === selectedRouteId)
-    const baseHour = parseInt(departureTime.split(':')[0], 10)
-    const baseMin = parseInt(departureTime.split(':')[1], 10)
-
     try {
-      // 1. Mark Fixture as Released and Active
-      await supabase
-        .from('fixtures')
-        .update({
-          is_active: true,
-          is_released: true,
-          departure_time: `${departureTime}:00`,
-          route_id: selectedRouteId
-        })
-        .eq('id', selectedFixture.id)
+      // Execute Atomic Database Release RPC
+      const { error } = await supabase.rpc('release_fixture_travel', {
+        p_fixture_id: selectedFixture.id,
+        p_route_id: selectedRouteId,
+        p_departure_time: `${departureTime}:00`,
+        p_coach_capacity: coachCapacity,
+        p_adult_standard: adultPrice,
+        p_adult_member: memberPrice
+      })
 
-      // 2. Create Default Coach 1
-      const { data: newCoach } = await supabase
-        .from('coaches')
-        .insert({
-          fixture_id: selectedFixture.id,
-          coach_number: 1,
-          seat_capacity: coachCapacity,
-          is_active: true
-        })
-        .select()
-        .single()
-
-      // 3. Create Pricing Tiers
-      await supabase.from('pricing_tiers').insert([
-        {
-          fixture_id: selectedFixture.id,
-          tier_name: 'Adult',
-          standard_price: adultPrice,
-          member_price: memberPrice
-        },
-        {
-          fixture_id: selectedFixture.id,
-          tier_name: 'Concession / Under 18',
-          standard_price: Math.max(10, adultPrice - 5),
-          member_price: Math.max(8, memberPrice - 5)
-        }
-      ])
-
-      // 4. Attach Route Stops with calculated pickup times based on departure
-      if (route && route.master_pickup_stops) {
-        const stopsToInsert = route.master_pickup_stops.map((stop: any) => {
-          const stopDate = new Date()
-          stopDate.setHours(baseHour, baseMin + stop.minute_offset, 0)
-          const stopTimeStr = stopDate.toTimeString().slice(0, 8)
-
-          return {
-            fixture_id: selectedFixture.id,
-            location_name: stop.location_name,
-            pickup_time: stopTimeStr,
-            sort_order: stop.sort_order
-          }
-        })
-
-        await supabase.from('pickup_locations').insert(stopsToInsert)
-      }
+      if (error) throw error
 
       setSelectedFixture(null)
       loadDashboard()
@@ -236,7 +188,7 @@ export default function AdminFixturesPage() {
           <div className="divide-y divide-[#1a2742]">
             {fixtures.length === 0 ? (
               <div className="p-12 text-center text-slate-500 text-sm">
-                No fixtures in database. Click "Auto-Sync League Fixtures" above to import the season schedule!
+                No fixtures in database. Click "Auto-Sync League Fixtures" above to import the schedule!
               </div>
             ) : (
               fixtures.map((f) => {
@@ -265,6 +217,7 @@ export default function AdminFixturesPage() {
                         <span>•</span>
                         <span>
                           {new Date(f.match_date).toLocaleDateString('en-GB', {
+                            timeZone: 'Europe/London',
                             weekday: 'short',
                             day: 'numeric',
                             month: 'short',
@@ -339,7 +292,6 @@ export default function AdminFixturesPage() {
               </div>
 
               <form onSubmit={handleConfirmRelease} className="space-y-4">
-                {/* Route Preset Selector */}
                 <div>
                   <label className="block text-xs font-bold text-slate-300 mb-1.5">
                     Select Directional Route Preset *

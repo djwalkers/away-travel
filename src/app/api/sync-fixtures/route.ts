@@ -4,36 +4,66 @@ import ical from 'ical'
 
 export const dynamic = 'force-dynamic'
 
-// Primary & Secondary Live iCal Feeds
 const FEED_URLS = [
   'https://ics.fixtur.es/v2/league-one/shrewsbury-town.ics',
   'https://ics.fixtur.es/v2/league-two/shrewsbury-town.ics',
   'https://ics.fixtur.es/v2/shrewsbury-town.ics'
 ]
 
-// Guaranteed Built-in Season Away Schedule (Fallback if live webcal endpoints are blocked)
-const DEFAULT_SEASON_AWAY_FIXTURES = [
-  { opponent: 'Fleetwood Town', venue: 'Highbury Stadium', match_date: '2026-08-25', kickoff_time: '19:45:00', departure_time: '14:30:00' },
-  { opponent: 'Rochdale', venue: 'Crown Oil Arena', match_date: '2026-09-01', kickoff_time: '19:45:00', departure_time: '15:00:00' },
-  { opponent: 'Wrexham AFC', venue: 'STōK Cae Ras', match_date: '2026-09-07', kickoff_time: '15:00:00', departure_time: '11:30:00' },
-  { opponent: 'Stockport County', venue: 'Edgeley Park', match_date: '2026-09-19', kickoff_time: '15:00:00', departure_time: '11:00:00' },
-  { opponent: 'Crewe Alexandra', venue: 'Mornflake Stadium', match_date: '2026-10-03', kickoff_time: '15:00:00', departure_time: '12:00:00' },
-  { opponent: 'Port Vale', venue: 'Vale Park', match_date: '2026-10-17', kickoff_time: '15:00:00', departure_time: '11:45:00' },
-  { opponent: 'Walsall', venue: 'Poundland Bescot Stadium', match_date: '2026-10-24', kickoff_time: '15:00:00', departure_time: '12:30:00' },
-  { opponent: 'Bristol Rovers', venue: 'Memorial Stadium', match_date: '2026-11-07', kickoff_time: '15:00:00', departure_time: '09:45:00' },
-  { opponent: 'Reading', venue: 'Select Car Leasing Stadium', match_date: '2026-11-21', kickoff_time: '15:00:00', departure_time: '09:00:00' },
-  { opponent: 'Blackpool', venue: 'Bloomfield Road', match_date: '2026-12-05', kickoff_time: '15:00:00', departure_time: '10:00:00' },
-  { opponent: 'Exeter City', venue: 'St James Park', match_date: '2026-12-19', kickoff_time: '15:00:00', departure_time: '08:00:00' },
-  { opponent: 'Carlisle United', venue: 'Brunton Park', match_date: '2027-01-09', kickoff_time: '15:00:00', departure_time: '08:30:00' }
-]
+// Converts any Date object to exact UK date ("YYYY-MM-DD") and time ("HH:mm:ss") accounting for BST / GMT
+function getUKDateTimeStrings(date: Date) {
+  const formatter = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/London',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  })
 
-export async function GET() {
+  const parts = formatter.formatToParts(date)
+  const p: Record<string, string> = {}
+  parts.forEach(({ type, value }) => {
+    p[type] = value
+  })
+
+  const ukDate = `${p.year}-${p.month}-${p.day}`
+  const ukTime = `${p.hour}:${p.minute}:${p.second}`
+  return { ukDate, ukTime }
+}
+
+export async function GET(request: Request) {
   const supabase = await createClient()
 
-  let icsText: string | null = null
-  let source = 'live-feed'
+  // 1. Authorization: Allow authenticated Admins OR calls with CRON_SECRET header
+  const authHeader = request.headers.get('authorization')
+  const cronSecret = process.env.CRON_SECRET
 
-  // 1. Attempt to fetch live feed with browser headers
+  let isAuthorized = false
+
+  if (cronSecret && authHeader === `Bearer ${cronSecret}`) {
+    isAuthorized = true
+  } else {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', user.id)
+        .single()
+      if (profile?.is_admin) isAuthorized = true
+    }
+  }
+
+  if (!isAuthorized) {
+    return NextResponse.json({ error: 'Unauthorized. Admin session required.' }, { status: 401 })
+  }
+
+  let icsText: string | null = null
+
+  // 2. Fetch iCal feed with browser header
   for (const url of FEED_URLS) {
     try {
       const response = await fetch(url, {
@@ -53,21 +83,20 @@ export async function GET() {
         }
       }
     } catch {
-      // Try next feed URL
+      // Try next URL
     }
   }
 
   let importedCount = 0
   let updatedCount = 0
 
-  // 2. If remote feed was successfully retrieved, parse events
   if (icsText) {
     try {
       const parsedData = ical.parseICS(icsText)
 
       for (const key in parsedData) {
         const event = parsedData[key]
-        if (event.type !== 'VEVENT' || !event.summary) continue
+        if (event.type !== 'VEVENT' || !event.summary || !event.start) continue
 
         const summary = event.summary as string
         const isAway =
@@ -83,8 +112,11 @@ export async function GET() {
           .replace(/fc/gi, '')
           .trim()
 
-        const matchDate = new Date(event.start as Date).toISOString().split('T')[0]
-        const kickoffTime = new Date(event.start as Date).toTimeString().slice(0, 8)
+        // Exact UK time calculation (BST/GMT safe)
+        const { ukDate: matchDate, ukTime: kickoffTime } = getUKDateTimeStrings(
+          new Date(event.start as Date)
+        )
+
         const venue = event.location || `${opponent} Stadium`
         const externalId =
           event.uid || `match_${opponent.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${matchDate}`
@@ -125,48 +157,15 @@ export async function GET() {
           importedCount++
         }
       }
-    } catch {
-      icsText = null
-    }
-  }
-
-  // 3. Fallback: Seed Default Season Away Schedule if live feed failed
-  if (!icsText) {
-    source = 'season-preset'
-    for (const item of DEFAULT_SEASON_AWAY_FIXTURES) {
-      const externalId = `fixture_${item.opponent.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${item.match_date}`
-
-      const { data: existingFixture } = await supabase
-        .from('fixtures')
-        .select('id, match_date, kickoff_time')
-        .eq('external_id', externalId)
-        .single()
-
-      if (!existingFixture) {
-        await supabase.from('fixtures').insert({
-          external_id: externalId,
-          opponent: item.opponent,
-          venue: item.venue,
-          match_date: item.match_date,
-          kickoff_time: item.kickoff_time,
-          departure_time: item.departure_time,
-          pickup_location: 'Croud Meadow (Main Stand)',
-          is_active: false,
-          is_released: false
-        })
-        importedCount++
-      }
+    } catch (e: any) {
+      return NextResponse.json({ error: 'Failed parsing iCal: ' + e.message }, { status: 500 })
     }
   }
 
   return NextResponse.json({
     success: true,
-    source,
     imported: importedCount,
     updated: updatedCount,
-    message:
-      importedCount > 0 || updatedCount > 0
-        ? `Sync successful! ${importedCount} away fixtures added as drafts, ${updatedCount} rescheduled times updated.`
-        : `All season away fixtures are already up to date in the database.`
+    message: `Sync complete! ${importedCount} fixtures imported, ${updatedCount} rescheduled times updated.`
   })
 }

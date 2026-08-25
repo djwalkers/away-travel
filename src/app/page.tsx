@@ -208,6 +208,7 @@ export default async function HomePage() {
                           <Calendar className="h-4 w-4 text-[#ffc72c]" />
                           <span>
                             {new Date(fixture.match_date).toLocaleDateString('en-GB', {
+                              timeZone: 'Europe/London',
                               weekday: 'short',
                               day: 'numeric',
                               month: 'short',
@@ -220,14 +221,14 @@ export default async function HomePage() {
                           <span>
                             Departs:{' '}
                             <strong className="text-white">
-                              {fixture.departure_time.slice(0, 5)}
+                              {fixture.departure_time?.slice(0, 5) || 'TBD'}
                             </strong>{' '}
-                            (KO: {fixture.kickoff_time.slice(0, 5)})
+                            (KO: {fixture.kickoff_time?.slice(0, 5) || 'TBD'})
                           </span>
                         </div>
                         <div className="flex items-center gap-2.5">
                           <MapPin className="h-4 w-4 text-slate-400" />
-                          <span>Pickup: {fixture.pickup_location}</span>
+                          <span>Pickup: {fixture.pickup_location || 'Main Stadium'}</span>
                         </div>
                       </div>
                     </div>
