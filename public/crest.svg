@@ -1,44 +1,62 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 240" fill="none">
-  <!-- Shield Background -->
-  <path d="M100 230C160 190 190 130 190 30L100 10L10 30C10 130 40 190 100 230Z" fill="#0057B8" stroke="#FFC72C" stroke-width="8"/>
-  
-  <!-- Shield Inner Border -->
-  <path d="M100 215C150 178 175 125 175 40L100 24L25 40C25 125 50 178 100 215Z" fill="#004696" stroke="#FFC72C" stroke-width="2" opacity="0.6"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%">
+  <defs>
+    <!-- Text Paths for Arched Roundel Lettering -->
+    <path id="topTextPath" d="M 55,200 A 145,145 0 1,1 345,200" fill="none" />
+    <path id="bottomTextPath" d="M 325,200 A 125,125 0 0,1 75,200" fill="none" />
+    
+    <!-- Loggerhead Leopard Face Def -->
+    <g id="loggerhead">
+      <!-- Outer Face Shape -->
+      <path d="M 0,-28 C 16,-28 28,-16 28,2 C 28,20 16,32 0,34 C -16,32 -28,20 -28,2 C -28,-16 -16,-28 0,-28 Z" fill="#FFC72C" stroke="#070B14" stroke-width="2.5"/>
+      <!-- Ears -->
+      <path d="M -22,-24 C -30,-34 -18,-42 -10,-30 Z" fill="#FFC72C" stroke="#070B14" stroke-width="2.5"/>
+      <path d="M 22,-24 C 30,-34 18,-42 10,-30 Z" fill="#FFC72C" stroke="#070B14" stroke-width="2.5"/>
+      <path d="M -19,-26 C -24,-31 -18,-35 -13,-28 Z" fill="#0057B8"/>
+      <path d="M 19,-26 C 24,-31 18,-35 13,-28 Z" fill="#0057B8"/>
+      <!-- Eyes -->
+      <ellipse cx="-10" cy="-6" rx="4" ry="5.5" fill="#070B14"/>
+      <ellipse cx="10" cy="-6" rx="4" ry="5.5" fill="#070B14"/>
+      <circle cx="-11" cy="-7" r="1.2" fill="#FFFFFF"/>
+      <circle cx="9" cy="-7" r="1.2" fill="#FFFFFF"/>
+      <!-- Nose & Whiskers -->
+      <polygon points="0,4 -6,-1 6,-1" fill="#070B14"/>
+      <path d="M 0,4 L 0,13 M 0,13 C -5,17 -11,13 -13,9 M 0,13 C 5,17 11,13 13,9" fill="none" stroke="#070B14" stroke-width="2.2" stroke-linecap="round"/>
+      <path d="M -10,7 L -24,5 M -10,10 L -23,12 M -9,13 L -21,18" fill="none" stroke="#070B14" stroke-width="1.8" stroke-linecap="round"/>
+      <path d="M 10,7 L 24,5 M 10,10 L 23,12 M 9,13 L 21,18" fill="none" stroke="#070B14" stroke-width="1.8" stroke-linecap="round"/>
+      <!-- Crown Fur Tufts -->
+      <path d="M -6,-28 L 0,-34 L 6,-28" fill="#FFC72C" stroke="#070B14" stroke-width="2"/>
+    </g>
+  </defs>
 
-  <!-- Top Left Loggerhead Lion Face -->
-  <g transform="translate(45, 60) scale(0.65)">
-    <circle cx="40" cy="40" r="32" fill="#FFC72C"/>
-    <circle cx="28" cy="32" r="5" fill="#070B14"/>
-    <circle cx="52" cy="32" r="5" fill="#070B14"/>
-    <path d="M35 48 Q40 55 45 48" stroke="#070B14" stroke-width="4" fill="none" stroke-linecap="round"/>
-    <path d="M22 18 Q40 28 58 18" stroke="#070B14" stroke-width="3" fill="none"/>
-    <path d="M12 35 Q18 45 20 58" stroke="#070B14" stroke-width="3" fill="none"/>
-    <path d="M68 35 Q62 45 60 58" stroke="#070B14" stroke-width="3" fill="none"/>
-  </g>
+  <!-- Outer Ring Base -->
+  <circle cx="200" cy="200" r="192" fill="#0057B8" stroke="#FFC72C" stroke-width="9"/>
+  <circle cx="200" cy="200" r="183" fill="none" stroke="#003E85" stroke-width="3"/>
 
-  <!-- Top Right Loggerhead Lion Face -->
-  <g transform="translate(105, 60) scale(0.65)">
-    <circle cx="40" cy="40" r="32" fill="#FFC72C"/>
-    <circle cx="28" cy="32" r="5" fill="#070B14"/>
-    <circle cx="52" cy="32" r="5" fill="#070B14"/>
-    <path d="M35 48 Q40 55 45 48" stroke="#070B14" stroke-width="4" fill="none" stroke-linecap="round"/>
-    <path d="M22 18 Q40 28 58 18" stroke="#070B14" stroke-width="3" fill="none"/>
-    <path d="M12 35 Q18 45 20 58" stroke="#070B14" stroke-width="3" fill="none"/>
-    <path d="M68 35 Q62 45 60 58" stroke="#070B14" stroke-width="3" fill="none"/>
-  </g>
+  <!-- Inner Center Shield Circle -->
+  <circle cx="200" cy="200" r="118" fill="#004C9E" stroke="#FFC72C" stroke-width="7"/>
+  <circle cx="200" cy="200" r="111" fill="none" stroke="#00356E" stroke-width="2.5"/>
 
-  <!-- Bottom Center Loggerhead Lion Face -->
-  <g transform="translate(74, 120) scale(0.68)">
-    <circle cx="40" cy="40" r="32" fill="#FFC72C"/>
-    <circle cx="28" cy="32" r="5" fill="#070B14"/>
-    <circle cx="52" cy="32" r="5" fill="#070B14"/>
-    <path d="M35 48 Q40 55 45 48" stroke="#070B14" stroke-width="4" fill="none" stroke-linecap="round"/>
-    <path d="M22 18 Q40 28 58 18" stroke="#070B14" stroke-width="3" fill="none"/>
-    <path d="M12 35 Q18 45 20 58" stroke="#070B14" stroke-width="3" fill="none"/>
-    <path d="M68 35 Q62 45 60 58" stroke="#070B14" stroke-width="3" fill="none"/>
-  </g>
+  <!-- Upper Arch Text: SHREWSBURY TOWN FOOTBALL CLUB -->
+  <text fill="#FFC72C" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="900" font-size="21.5" letter-spacing="2.8px">
+    <textPath href="#topTextPath" startOffset="50%" text-anchor="middle">
+      SHREWSBURY TOWN FOOTBALL CLUB
+    </textPath>
+  </text>
 
-  <!-- Bottom Banner with STFC -->
-  <rect x="50" y="192" width="100" height="22" rx="6" fill="#FFC72C"/>
-  <text x="100" y="208" fill="#070B14" font-family="sans-serif" font-weight="900" font-size="13" text-anchor="middle" letter-spacing="2">STFC</text>
+  <!-- Year Founded -->
+  <text x="200" y="112" fill="#FFC72C" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="800" font-size="14" text-anchor="middle" letter-spacing="3.5px">
+    1886
+  </text>
+
+  <!-- Bottom Arch Text: FLOREAT SALOPIA -->
+  <text fill="#FFC72C" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="900" font-size="20" letter-spacing="3.5px">
+    <textPath href="#bottomTextPath" startOffset="50%" text-anchor="middle">
+      FLOREAT SALOPIA
+    </textPath>
+  </text>
+
+  <!-- Three Loggerheads (2 Top, 1 Bottom) -->
+  <use href="#loggerhead" x="156" y="172" transform="scale(1.1) translate(-14, -10)" />
+  <use href="#loggerhead" x="244" y="172" transform="scale(1.1) translate(-22, -10)" />
+  <use href="#loggerhead" x="200" y="246" transform="scale(1.18) translate(-30, -32)" />
 </svg>
