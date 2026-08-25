@@ -1,0 +1,16 @@
+name: Keep Supabase Database Active
+
+on:
+  schedule:
+    - cron: '0 0 */3 * *' # Runs at midnight every 3 days
+  workflow_dispatch: # Allows manual trigger from GitHub UI
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST API
+        run: |
+          curl -s -X GET "${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}/rest/v1/fixtures?select=id&limit=1" \
+          -H "apikey: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}" \
+          -H "Authorization: Bearer ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}"
