@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
 import SignOutButton from '@/components/SignOutButton'
 import {
@@ -63,18 +64,22 @@ export default async function HomePage() {
     <main className="min-h-screen bg-salop-night text-slate-100 p-6 md:p-12">
       <div className="max-w-5xl mx-auto space-y-8">
         
-        {/* Header with Salop Branding */}
+        {/* Header with Official Shrewsbury Town Crest */}
         <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-salop-border pb-6">
           <div className="flex items-center gap-3.5">
-            <div className="h-12 w-12 rounded-2xl bg-salop-blue border-2 border-salop-amber flex items-center justify-center font-black text-salop-amber text-xl shadow-lg shadow-blue-950/60">
-              ST
+            <div className="relative h-14 w-14 shrink-0 flex items-center justify-center p-1 rounded-2xl bg-salop-surface border border-salop-border shadow-xl">
+              <img
+                src="/crest.png"
+                alt="Shrewsbury Town FC Crest"
+                className="h-full w-full object-contain drop-shadow-md"
+              />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">
                   Away Travel Club
                 </h1>
-                <span className="hidden sm:inline-block px-2 py-0.5 rounded-full bg-salop-amber/10 border border-salop-amber/30 text-[10px] font-bold text-salop-amber uppercase tracking-wider">
+                <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-full bg-salop-amber/10 border border-salop-amber/30 text-[10px] font-bold text-salop-amber uppercase tracking-wider">
                   Official Travel
                 </span>
               </div>
