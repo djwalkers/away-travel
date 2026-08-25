@@ -1,6 +1,17 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --color-salop-blue: #0057b8;
+  --color-salop-blue-hover: #004694;
+  --color-salop-blue-light: #1e6fe0;
+  --color-salop-amber: #ffc72c;
+  --color-salop-amber-hover: #e6b022;
+  --color-salop-amber-dark: #d99e0b;
+  --color-salop-night: #070b14;
+  --color-salop-surface: #0e1726;
+  --color-salop-card: #0a1220;
+  --color-salop-border: #1a2742;
+}
 
 :root {
   color-scheme: dark;

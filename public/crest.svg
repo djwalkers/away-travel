@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 240" fill="none">
+  <!-- Shield Background -->
+  <path d="M100 230C160 190 190 130 190 30L100 10L10 30C10 130 40 190 100 230Z" fill="#0057B8" stroke="#FFC72C" stroke-width="8"/>
+  
+  <!-- Shield Inner Border -->
+  <path d="M100 215C150 178 175 125 175 40L100 24L25 40C25 125 50 178 100 215Z" fill="#004696" stroke="#FFC72C" stroke-width="2" opacity="0.6"/>
+
+  <!-- Top Left Loggerhead Lion Face -->
+  <g transform="translate(45, 60) scale(0.65)">
+    <circle cx="40" cy="40" r="32" fill="#FFC72C"/>
+    <circle cx="28" cy="32" r="5" fill="#070B14"/>
+    <circle cx="52" cy="32" r="5" fill="#070B14"/>
+    <path d="M35 48 Q40 55 45 48" stroke="#070B14" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <path d="M22 18 Q40 28 58 18" stroke="#070B14" stroke-width="3" fill="none"/>
+    <path d="M12 35 Q18 45 20 58" stroke="#070B14" stroke-width="3" fill="none"/>
+    <path d="M68 35 Q62 45 60 58" stroke="#070B14" stroke-width="3" fill="none"/>
+  </g>
+
+  <!-- Top Right Loggerhead Lion Face -->
+  <g transform="translate(105, 60) scale(0.65)">
+    <circle cx="40" cy="40" r="32" fill="#FFC72C"/>
+    <circle cx="28" cy="32" r="5" fill="#070B14"/>
+    <circle cx="52" cy="32" r="5" fill="#070B14"/>
+    <path d="M35 48 Q40 55 45 48" stroke="#070B14" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <path d="M22 18 Q40 28 58 18" stroke="#070B14" stroke-width="3" fill="none"/>
+    <path d="M12 35 Q18 45 20 58" stroke="#070B14" stroke-width="3" fill="none"/>
+    <path d="M68 35 Q62 45 60 58" stroke="#070B14" stroke-width="3" fill="none"/>
+  </g>
+
+  <!-- Bottom Center Loggerhead Lion Face -->
+  <g transform="translate(74, 120) scale(0.68)">
+    <circle cx="40" cy="40" r="32" fill="#FFC72C"/>
+    <circle cx="28" cy="32" r="5" fill="#070B14"/>
+    <circle cx="52" cy="32" r="5" fill="#070B14"/>
+    <path d="M35 48 Q40 55 45 48" stroke="#070B14" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <path d="M22 18 Q40 28 58 18" stroke="#070B14" stroke-width="3" fill="none"/>
+    <path d="M12 35 Q18 45 20 58" stroke="#070B14" stroke-width="3" fill="none"/>
+    <path d="M68 35 Q62 45 60 58" stroke="#070B14" stroke-width="3" fill="none"/>
+  </g>
+
+  <!-- Bottom Banner with STFC -->
+  <rect x="50" y="192" width="100" height="22" rx="6" fill="#FFC72C"/>
+  <text x="100" y="208" fill="#070B14" font-family="sans-serif" font-weight="900" font-size="13" text-anchor="middle" letter-spacing="2">STFC</text>
+</svg>
