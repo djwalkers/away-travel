@@ -1,0 +1,14 @@
+name: Nightly Fixture Reschedule Sync
+
+on:
+  schedule:
+    - cron: '0 3 * * *' # Every night at 3 AM
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync Fixtures from Official Feed
+        run: |
+          curl -s "${{ secrets.VERCEL_PROJECT_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}/api/sync-fixtures"
