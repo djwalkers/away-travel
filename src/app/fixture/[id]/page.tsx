@@ -72,7 +72,6 @@ export default function BookingPage() {
   const [pricingTiers, setPricingTiers] = useState<PricingTier[]>([])
   const [pickupLocations, setPickupLocations] = useState<PickupLocation[]>([])
 
-  // Form State
   const [selectedCoachId, setSelectedCoachId] = useState<string>('')
   const [selectedPickupId, setSelectedPickupId] = useState<string>('')
   const [isMember, setIsMember] = useState(false)
@@ -82,7 +81,6 @@ export default function BookingPage() {
     { name: '', tier_name: 'Adult' }
   ])
 
-  // Confirmation State
   const [bookingComplete, setBookingComplete] = useState(false)
   const [bookingSummary, setBookingSummary] = useState<any>(null)
 
@@ -94,7 +92,6 @@ export default function BookingPage() {
       setErrorMessage(null)
 
       try {
-        // 1. Check logged-in supporter
         const { data: { user } } = await supabase.auth.getUser()
         if (user) {
           setCurrentUser(user)
@@ -115,7 +112,6 @@ export default function BookingPage() {
           }
         }
 
-        // 2. Fetch Fixture
         const { data: fixData, error: fixErr } = await supabase
           .from('fixtures')
           .select('*')
@@ -125,7 +121,6 @@ export default function BookingPage() {
         if (fixErr || !fixData) throw new Error('Fixture not found')
         setFixture(fixData)
 
-        // 3. Fetch Coaches
         const { data: coachData, error: coachErr } = await supabase
           .from('coaches')
           .select(`
@@ -158,7 +153,6 @@ export default function BookingPage() {
         const availableCoach = formattedCoaches.find((c) => c.remaining_seats > 0)
         if (availableCoach) setSelectedCoachId(availableCoach.id)
 
-        // 4. Fetch Pricing Tiers
         const { data: tierData, error: tierErr } = await supabase
           .from('pricing_tiers')
           .select('*')
@@ -167,7 +161,6 @@ export default function BookingPage() {
         if (tierErr) throw tierErr
         setPricingTiers(tierData || [])
 
-        // 5. Fetch Pickup Locations
         const { data: pickupData, error: pickupErr } = await supabase
           .from('pickup_locations')
           .select('*')
@@ -245,7 +238,6 @@ export default function BookingPage() {
 
     setSubmitting(true)
 
-    // Simulated network authorization delay for Card payments
     if (paymentMethod === 'card') {
       await new Promise((resolve) => setTimeout(resolve, 800))
     }
@@ -261,7 +253,6 @@ export default function BookingPage() {
     }))
 
     try {
-      // Mock card sets status directly to 'paid', cash sets to 'reserved'
       const paymentStatus = paymentMethod === 'card' ? 'paid' : 'reserved'
 
       const inserts = passengerPayload.map((p) => ({
@@ -299,37 +290,37 @@ export default function BookingPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
-        <div className="animate-pulse text-slate-400">Loading booking information...</div>
+      <div className="min-h-screen bg-salop-night text-slate-100 flex items-center justify-center">
+        <div className="animate-pulse text-salop-amber">Loading away match details...</div>
       </div>
     )
   }
 
   if (bookingComplete && bookingSummary) {
     return (
-      <main className="min-h-screen bg-slate-950 text-slate-100 p-6 md:p-12">
-        <div className="max-w-2xl mx-auto rounded-2xl border border-emerald-500/30 bg-slate-900/90 p-8 shadow-2xl">
+      <main className="min-h-screen bg-salop-night text-slate-100 p-6 md:p-12">
+        <div className="max-w-2xl mx-auto rounded-2xl border border-salop-border bg-salop-card p-8 shadow-2xl">
           <div className="text-center">
-            <CheckCircle2 className="h-16 w-16 text-emerald-400 mx-auto" />
-            <h1 className="text-3xl font-extrabold text-white mt-4">
-              {paymentMethod === 'card' ? 'Payment Successful & Booked!' : 'Seats Reserved!'}
+            <CheckCircle2 className="h-16 w-16 text-salop-amber mx-auto" />
+            <h1 className="text-3xl font-black text-white mt-4">
+              {paymentMethod === 'card' ? 'Payment Confirmed!' : 'Coach Seats Reserved!'}
             </h1>
             <p className="text-slate-400 mt-2">
-              Booking Ref: <strong className="text-emerald-400 tracking-wider">{bookingSummary.reference}</strong>
+              Booking Ref: <strong className="text-salop-amber tracking-wider">{bookingSummary.reference}</strong>
             </p>
           </div>
 
-          <div className="mt-8 rounded-xl border border-slate-800 bg-slate-950/60 p-6 space-y-4">
-            <div className="border-b border-slate-800 pb-3 flex justify-between items-start">
+          <div className="mt-8 rounded-xl border border-salop-border bg-salop-surface p-6 space-y-4">
+            <div className="border-b border-salop-border pb-3 flex justify-between items-start">
               <div>
-                <span className="text-xs uppercase font-semibold text-slate-400">Match</span>
+                <span className="text-xs uppercase font-bold text-salop-amber">Match</span>
                 <h3 className="text-xl font-bold text-white">{fixture?.opponent}</h3>
                 <p className="text-sm text-slate-400">{fixture?.venue}</p>
               </div>
-              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+              <span className={`px-3 py-1 rounded-full text-xs font-bold ${
                 paymentMethod === 'card'
                   ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                  : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                  : 'bg-amber-500/10 text-salop-amber border border-salop-amber/30'
               }`}>
                 {paymentMethod === 'card' ? 'Paid by Card' : 'Pay on Coach'}
               </span>
@@ -337,70 +328,52 @@ export default function BookingPage() {
 
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <span className="text-xs text-slate-500 block">Coach Allocation</span>
-                <strong className="text-white">Coach {bookingSummary.coachNumber}</strong>
+                <span className="text-xs text-slate-400 block">Coach Allocation</span>
+                <strong className="text-salop-amber text-base">Coach {bookingSummary.coachNumber}</strong>
               </div>
               <div>
-                <span className="text-xs text-slate-500 block">Match Kickoff</span>
+                <span className="text-xs text-slate-400 block">Match Kickoff</span>
                 <strong className="text-white">{fixture?.kickoff_time?.slice(0, 5)}</strong>
               </div>
-              <div className="col-span-2 rounded-lg bg-blue-950/40 border border-blue-800/40 p-3">
-                <span className="text-xs font-semibold text-blue-400 uppercase tracking-wider block">Your Selected Pickup Point</span>
+              <div className="col-span-2 rounded-lg bg-salop-blue/10 border border-salop-blue/30 p-3">
+                <span className="text-xs font-bold text-salop-amber uppercase tracking-wider block">Pickup Point</span>
                 <div className="flex items-center gap-2 mt-1 text-white font-medium">
-                  <MapPin className="h-4 w-4 text-blue-400 shrink-0" />
+                  <MapPin className="h-4 w-4 text-salop-amber shrink-0" />
                   <span>{bookingSummary.pickupPoint}</span>
                 </div>
               </div>
             </div>
 
-            <div className="border-t border-slate-800 pt-4">
-              <span className="text-xs uppercase font-semibold text-slate-400 block mb-2">Passengers</span>
+            <div className="border-t border-salop-border pt-4">
+              <span className="text-xs uppercase font-bold text-slate-400 block mb-2">Passengers</span>
               <ul className="space-y-1.5 text-sm">
                 {bookingSummary.passengers.map((p: any, idx: number) => (
                   <li key={idx} className="flex justify-between text-slate-300">
-                    <span>{p.name} <span className="text-xs text-slate-500">({p.tier})</span></span>
-                    <span className="font-semibold text-white">£{p.price.toFixed(2)}</span>
+                    <span>{p.name} <span className="text-xs text-slate-400">({p.tier})</span></span>
+                    <span className="font-bold text-white">£{p.price.toFixed(2)}</span>
                   </li>
                 ))}
               </ul>
             </div>
 
-            <div className="border-t border-slate-800 pt-3 flex justify-between items-center text-base">
+            <div className="border-t border-salop-border pt-3 flex justify-between items-center text-base">
               <span className="font-bold text-white">Total Amount</span>
-              <span className="font-extrabold text-emerald-400 text-lg">£{bookingSummary.total.toFixed(2)}</span>
+              <span className="font-black text-salop-amber text-xl">£{bookingSummary.total.toFixed(2)}</span>
             </div>
           </div>
-
-          {paymentMethod === 'pay_on_coach' ? (
-            <div className="mt-6 rounded-xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-300 flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
-              <div>
-                <strong className="block font-semibold">Matchday Cash Collection:</strong>
-                Please arrive at your pickup point 10 minutes prior with exact cash (£{bookingSummary.total.toFixed(2)}).
-              </div>
-            </div>
-          ) : (
-            <div className="mt-6 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-300 flex items-start gap-3">
-              <CheckCircle2 className="h-5 w-5 shrink-0 mt-0.5" />
-              <div>
-                <strong className="block font-semibold">Card Payment Verified:</strong>
-                Your seat is guaranteed and marked as paid on the steward manifest.
-              </div>
-            </div>
-          )}
 
           <div className="mt-8 flex items-center justify-center gap-4">
             {currentUser && (
               <Link
                 href="/account"
-                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white hover:bg-blue-500 transition"
+                className="inline-flex items-center gap-2 rounded-xl bg-salop-blue px-6 py-3 text-sm font-bold text-white hover:bg-salop-blue-hover transition"
               >
                 View in My Account
               </Link>
             )}
             <Link
               href="/"
-              className="inline-flex items-center gap-2 rounded-xl bg-slate-800 px-6 py-3 text-sm font-semibold text-white hover:bg-slate-700 transition"
+              className="inline-flex items-center gap-2 rounded-xl bg-salop-surface border border-salop-border px-6 py-3 text-sm font-semibold text-white hover:bg-salop-border transition"
             >
               <ArrowLeft className="h-4 w-4" />
               Back to Fixtures
@@ -412,7 +385,7 @@ export default function BookingPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 p-6 md:p-12">
+    <main className="min-h-screen bg-salop-night text-slate-100 p-6 md:p-12">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <Link
@@ -424,11 +397,11 @@ export default function BookingPage() {
           </Link>
 
           {currentUser ? (
-            <span className="inline-flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">
+            <span className="inline-flex items-center gap-1.5 text-xs text-salop-amber bg-salop-amber/10 border border-salop-amber/30 px-3 py-1 rounded-full font-bold">
               <UserCheck className="h-3.5 w-3.5" /> Logged In
             </span>
           ) : (
-            <Link href="/login" className="text-xs text-blue-400 hover:underline">
+            <Link href="/login" className="text-xs text-salop-amber hover:underline font-semibold">
               Sign in for faster booking
             </Link>
           )}
@@ -443,13 +416,14 @@ export default function BookingPage() {
 
         <div className="grid gap-8 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-lg">
-              <h1 className="text-2xl md:text-3xl font-bold text-white">{fixture?.opponent}</h1>
-              <p className="text-slate-400 text-sm mt-1">{fixture?.venue}</p>
+            <div className="rounded-2xl border border-salop-border bg-salop-card p-6 shadow-lg">
+              <span className="text-xs font-bold uppercase tracking-wider text-salop-amber">Away Fixture</span>
+              <h1 className="text-2xl md:text-3xl font-black text-white mt-1">{fixture?.opponent}</h1>
+              <p className="text-slate-400 text-sm">{fixture?.venue}</p>
 
-              <div className="grid grid-cols-2 gap-4 mt-6 text-sm text-slate-300 border-t border-slate-800 pt-4">
+              <div className="grid grid-cols-2 gap-4 mt-6 text-sm text-slate-300 border-t border-salop-border pt-4">
                 <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-slate-400" />
+                  <Calendar className="h-4 w-4 text-salop-amber" />
                   <span>
                     {fixture?.match_date
                       ? new Date(fixture.match_date).toLocaleDateString('en-GB', {
@@ -461,7 +435,7 @@ export default function BookingPage() {
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-slate-400" />
+                  <Clock className="h-4 w-4 text-salop-blue-light" />
                   <span>Kickoff: <strong className="text-white">{fixture?.kickoff_time?.slice(0, 5)}</strong></span>
                 </div>
               </div>
@@ -469,10 +443,10 @@ export default function BookingPage() {
 
             <form onSubmit={handleSubmitBooking} className="space-y-6">
               {/* Pickup Stops */}
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-lg">
+              <div className="rounded-2xl border border-salop-border bg-salop-card p-6 shadow-lg">
                 <div className="flex items-center gap-2 mb-3">
-                  <Navigation className="h-5 w-5 text-blue-400" />
-                  <label className="text-sm font-bold text-slate-200">
+                  <Navigation className="h-5 w-5 text-salop-amber" />
+                  <label className="text-sm font-bold text-white">
                     Choose Your Pickup Location & Time
                   </label>
                 </div>
@@ -486,15 +460,15 @@ export default function BookingPage() {
                         onClick={() => setSelectedPickupId(loc.id)}
                         className={`w-full flex items-center justify-between p-3.5 rounded-xl border text-left transition ${
                           selectedPickupId === loc.id
-                            ? 'border-blue-500 bg-blue-600/10 text-white'
-                            : 'border-slate-800 bg-slate-950/40 text-slate-300 hover:border-slate-700'
+                            ? 'border-salop-amber bg-salop-amber/10 text-white'
+                            : 'border-salop-border bg-salop-surface text-slate-300 hover:border-slate-600'
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <MapPin className={`h-4 w-4 ${selectedPickupId === loc.id ? 'text-blue-400' : 'text-slate-500'}`} />
+                          <MapPin className={`h-4 w-4 ${selectedPickupId === loc.id ? 'text-salop-amber' : 'text-slate-500'}`} />
                           <span className="font-medium text-sm">{loc.location_name}</span>
                         </div>
-                        <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-slate-800 text-slate-200 border border-slate-700">
+                        <span className="text-xs font-bold px-2.5 py-1 rounded-md bg-salop-night text-salop-amber border border-salop-border">
                           {loc.pickup_time.slice(0, 5)}
                         </span>
                       </button>
@@ -508,8 +482,8 @@ export default function BookingPage() {
               </div>
 
               {/* Coach Selector */}
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-lg">
-                <label className="block text-sm font-bold text-slate-200 mb-3">
+              <div className="rounded-2xl border border-salop-border bg-salop-card p-6 shadow-lg">
+                <label className="block text-sm font-bold text-white mb-3">
                   Select Coach
                 </label>
                 <div className="grid sm:grid-cols-2 gap-3">
@@ -521,20 +495,20 @@ export default function BookingPage() {
                       onClick={() => setSelectedCoachId(coach.id)}
                       className={`flex items-center justify-between p-4 rounded-xl border text-left transition ${
                         selectedCoachId === coach.id
-                          ? 'border-blue-500 bg-blue-600/10 text-white'
+                          ? 'border-salop-blue bg-salop-blue/15 text-white'
                           : coach.remaining_seats === 0
-                          ? 'border-slate-800 bg-slate-900/40 text-slate-600 opacity-50 cursor-not-allowed'
-                          : 'border-slate-800 bg-slate-950/40 text-slate-300 hover:border-slate-700'
+                          ? 'border-salop-border bg-salop-surface/50 text-slate-600 opacity-50 cursor-not-allowed'
+                          : 'border-salop-border bg-salop-surface text-slate-300 hover:border-slate-600'
                       }`}
                     >
                       <div>
                         <div className="font-bold">Coach {coach.coach_number}</div>
                         <div className="text-xs text-slate-400">{coach.seat_capacity}-Seater</div>
                       </div>
-                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                      <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
                         coach.remaining_seats === 0
                           ? 'bg-rose-500/10 text-rose-400'
-                          : 'bg-emerald-500/10 text-emerald-400'
+                          : 'bg-salop-amber/10 text-salop-amber border border-salop-amber/30'
                       }`}>
                         {coach.remaining_seats === 0 ? 'Full' : `${coach.remaining_seats} seats left`}
                       </span>
@@ -544,13 +518,13 @@ export default function BookingPage() {
               </div>
 
               {/* Membership Toggle */}
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-lg">
+              <div className="rounded-2xl border border-salop-border bg-salop-card p-6 shadow-lg">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <ShieldCheck className="h-6 w-6 text-emerald-400" />
+                    <ShieldCheck className="h-6 w-6 text-salop-amber" />
                     <div>
                       <div className="text-sm font-bold text-white">Travel Club Member?</div>
-                      <div className="text-xs text-slate-400">Get discounted supporter travel rates</div>
+                      <div className="text-xs text-slate-400">Get discounted Salop away travel rates</div>
                     </div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
@@ -560,28 +534,28 @@ export default function BookingPage() {
                       onChange={(e) => setIsMember(e.target.checked)}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                    <div className="w-11 h-6 bg-salop-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-salop-amber"></div>
                   </label>
                 </div>
 
                 {isMember && (
-                  <div className="mt-4 pt-4 border-t border-slate-800">
+                  <div className="mt-4 pt-4 border-t border-salop-border">
                     <label className="block text-xs font-semibold text-slate-300 mb-1">
                       Membership Number / Name
                     </label>
                     <input
                       type="text"
-                      placeholder="e.g. TC-10482"
+                      placeholder="e.g. ST-10482"
                       value={membershipNo}
                       onChange={(e) => setMembershipNo(e.target.value)}
-                      className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3.5 py-2 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none"
+                      className="w-full rounded-xl border border-salop-border bg-salop-night px-3.5 py-2 text-sm text-white placeholder-slate-500 focus:border-salop-amber focus:outline-none"
                     />
                   </div>
                 )}
               </div>
 
               {/* Passenger List */}
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-lg space-y-4">
+              <div className="rounded-2xl border border-salop-border bg-salop-card p-6 shadow-lg space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-base font-bold text-white">Passenger Details</h3>
@@ -590,7 +564,7 @@ export default function BookingPage() {
                   <button
                     type="button"
                     onClick={handleAddPassenger}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700 transition"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-salop-border bg-salop-surface px-3 py-1.5 text-xs font-bold text-salop-amber hover:bg-salop-border transition"
                   >
                     <Plus className="h-3.5 w-3.5" />
                     Add Seat
@@ -599,7 +573,7 @@ export default function BookingPage() {
 
                 <div className="space-y-3">
                   {passengers.map((passenger, index) => (
-                    <div key={index} className="flex gap-3 items-center rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                    <div key={index} className="flex gap-3 items-center rounded-xl border border-salop-border bg-salop-surface p-3">
                       <div className="flex-1">
                         <input
                           type="text"
@@ -607,14 +581,14 @@ export default function BookingPage() {
                           placeholder={`Passenger ${index + 1} Full Name`}
                           value={passenger.name}
                           onChange={(e) => handlePassengerChange(index, 'name', e.target.value)}
-                          className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none"
+                          className="w-full rounded-lg border border-salop-border bg-salop-night px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-salop-amber focus:outline-none"
                         />
                       </div>
                       <div className="w-36">
                         <select
                           value={passenger.tier_name}
                           onChange={(e) => handlePassengerChange(index, 'tier_name', e.target.value)}
-                          className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+                          className="w-full rounded-lg border border-salop-border bg-salop-night px-3 py-2 text-sm text-white focus:border-salop-amber focus:outline-none"
                         >
                           {pricingTiers.map((tier) => (
                             <option key={tier.id} value={tier.tier_name}>
@@ -638,8 +612,8 @@ export default function BookingPage() {
               </div>
 
               {/* Payment Mode */}
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-lg">
-                <label className="block text-sm font-bold text-slate-200 mb-3">
+              <div className="rounded-2xl border border-salop-border bg-salop-card p-6 shadow-lg">
+                <label className="block text-sm font-bold text-white mb-3">
                   Payment Option
                 </label>
                 <div className="grid sm:grid-cols-2 gap-3">
@@ -648,11 +622,11 @@ export default function BookingPage() {
                     onClick={() => setPaymentMethod('pay_on_coach')}
                     className={`flex items-start gap-3 p-4 rounded-xl border text-left transition ${
                       paymentMethod === 'pay_on_coach'
-                        ? 'border-emerald-500 bg-emerald-600/10 text-white'
-                        : 'border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700'
+                        ? 'border-salop-amber bg-salop-amber/10 text-white'
+                        : 'border-salop-border bg-salop-surface text-slate-400 hover:border-slate-600'
                     }`}
                   >
-                    <Banknote className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
+                    <Banknote className="h-5 w-5 text-salop-amber shrink-0 mt-0.5" />
                     <div>
                       <div className="font-bold text-white text-sm">Reserve & Pay on Coach</div>
                       <div className="text-xs text-slate-400 mt-0.5">Pay cash to steward upon boarding</div>
@@ -664,11 +638,11 @@ export default function BookingPage() {
                     onClick={() => setPaymentMethod('card')}
                     className={`flex items-start gap-3 p-4 rounded-xl border text-left transition ${
                       paymentMethod === 'card'
-                        ? 'border-blue-500 bg-blue-600/10 text-white'
-                        : 'border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700'
+                        ? 'border-salop-blue bg-salop-blue/15 text-white'
+                        : 'border-salop-border bg-salop-surface text-slate-400 hover:border-slate-600'
                     }`}
                   >
-                    <CreditCard className="h-5 w-5 text-blue-400 shrink-0 mt-0.5" />
+                    <CreditCard className="h-5 w-5 text-salop-blue-light shrink-0 mt-0.5" />
                     <div>
                       <div className="font-bold text-white text-sm">Pay Online by Card</div>
                       <div className="text-xs text-slate-400 mt-0.5">Instant confirmation (Demo Mode)</div>
@@ -680,7 +654,7 @@ export default function BookingPage() {
               <button
                 type="submit"
                 disabled={submitting || remainingSeats === 0}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-3.5 text-base font-bold text-white shadow-lg transition hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-salop-amber py-3.5 text-base font-black text-salop-night shadow-xl transition hover:bg-salop-amber-hover disabled:opacity-50 disabled:cursor-not-allowed shadow-amber-500/10"
               >
                 {submitting ? (
                   <>
@@ -696,10 +670,10 @@ export default function BookingPage() {
             </form>
           </div>
 
-          {/* Summary */}
+          {/* Summary Sidebar */}
           <div className="lg:col-span-1">
-            <div className="sticky top-6 rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-lg space-y-4">
-              <h3 className="text-base font-bold text-white border-b border-slate-800 pb-3">
+            <div className="sticky top-6 rounded-2xl border border-salop-border bg-salop-card p-6 shadow-lg space-y-4">
+              <h3 className="text-base font-bold text-white border-b border-salop-border pb-3">
                 Booking Summary
               </h3>
 
@@ -712,7 +686,7 @@ export default function BookingPage() {
                 </div>
                 <div className="flex justify-between text-slate-400">
                   <span>Departure Time</span>
-                  <span className="text-emerald-400 font-semibold">
+                  <span className="text-salop-amber font-bold">
                     {selectedPickup?.pickup_time.slice(0, 5) || fixture?.departure_time.slice(0, 5)}
                   </span>
                 </div>
@@ -726,13 +700,13 @@ export default function BookingPage() {
                 </div>
                 <div className="flex justify-between text-slate-400">
                   <span>Membership Rate</span>
-                  <span className={isMember ? 'text-emerald-400 font-medium' : 'text-slate-400'}>
+                  <span className={isMember ? 'text-salop-amber font-bold' : 'text-slate-400'}>
                     {isMember ? 'Applied' : 'Standard'}
                   </span>
                 </div>
               </div>
 
-              <div className="border-t border-slate-800 pt-3 space-y-2">
+              <div className="border-t border-salop-border pt-3 space-y-2">
                 {passengers.map((p, idx) => (
                   <div key={idx} className="flex justify-between text-xs text-slate-300">
                     <span>Seat {idx + 1}: {p.name || 'Passenger'} ({p.tier_name})</span>
@@ -741,9 +715,9 @@ export default function BookingPage() {
                 ))}
               </div>
 
-              <div className="border-t border-slate-800 pt-3 flex justify-between items-center text-lg">
+              <div className="border-t border-salop-border pt-3 flex justify-between items-center text-lg">
                 <span className="font-bold text-white">Total Due</span>
-                <span className="font-extrabold text-white">£{totalPrice.toFixed(2)}</span>
+                <span className="font-black text-salop-amber text-xl">£{totalPrice.toFixed(2)}</span>
               </div>
             </div>
           </div>
