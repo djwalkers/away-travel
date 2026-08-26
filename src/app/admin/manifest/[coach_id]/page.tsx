@@ -19,9 +19,8 @@ import {
   MessageCircle,
   AlertTriangle,
   UserCheck,
-  UserX,
-  Clock,
-  MapPin
+  MapPin,
+  RefreshCw
 } from 'lucide-react'
 
 interface Booking {
@@ -34,11 +33,9 @@ interface Booking {
   pickup_point: string
   is_boarded: boolean
   created_at: string
-  profiles?: {
-    phone_number?: string
-    full_name?: string
-    email?: string
-  } | null
+  user_id?: string
+  phone_number?: string
+  email?: string
 }
 
 export default function StewardManifestPage() {
@@ -52,8 +49,6 @@ export default function StewardManifestPage() {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [digitalMode, setDigitalMode] = useState(true)
-
-  // Filter Tabs: 'all' | 'missing' | 'boarded'
   const [filterTab, setFilterTab] = useState<'all' | 'missing' | 'boarded'>('all')
 
   useEffect(() => {
@@ -61,20 +56,14 @@ export default function StewardManifestPage() {
 
     loadManifest()
 
-    // Real-time synchronization across stewards' devices
+    // Real-time synchronization across stewards
     const channel = supabase
       .channel(`coach_bookings_${coachId}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'bookings', filter: `coach_id=eq.${coachId}` },
-        (payload) => {
-          if (payload.eventType === 'UPDATE') {
-            setBookings((prev) =>
-              prev.map((b) => (b.id === payload.new.id ? { ...b, ...payload.new } : b))
-            )
-          } else if (payload.eventType === 'INSERT') {
-            loadManifest()
-          }
+        () => {
+          loadManifest()
         }
       )
       .subscribe()
@@ -87,44 +76,71 @@ export default function StewardManifestPage() {
   async function loadManifest() {
     setLoading(true)
 
-    const { data: coachData } = await supabase
-      .from('coaches')
-      .select('*, fixtures(*)')
-      .eq('id', coachId)
-      .single()
+    try {
+      // 1. Fetch Coach & Fixture
+      const { data: coachData } = await supabase
+        .from('coaches')
+        .select('*, fixtures(*)')
+        .eq('id', coachId)
+        .single()
 
-    if (coachData) {
-      setCoach(coachData)
-      setFixture(coachData.fixtures)
-    }
+      if (coachData) {
+        setCoach(coachData)
+        setFixture(coachData.fixtures)
+      }
 
-    const { data: bookingsData } = await supabase
-      .from('bookings')
-      .select(`
-        *,
-        profiles:user_id (
-          phone_number,
-          full_name,
-          email
+      // 2. Fetch Bookings for this coach
+      const { data: bookingsData, error: bookErr } = await supabase
+        .from('bookings')
+        .select('*')
+        .eq('coach_id', coachId)
+        .neq('payment_status', 'cancelled')
+        .order('passenger_name', { ascending: true })
+
+      if (bookErr) throw bookErr
+
+      if (bookingsData && bookingsData.length > 0) {
+        // Collect user IDs to pull contact phone numbers
+        const userIds = Array.from(
+          new Set(bookingsData.map((b: any) => b.user_id).filter(Boolean))
         )
-      `)
-      .eq('coach_id', coachId)
-      .neq('payment_status', 'cancelled')
-      .order('passenger_name', { ascending: true })
 
-    if (bookingsData) {
-      setBookings(bookingsData as any)
+        let profileMap: Record<string, any> = {}
+
+        if (userIds.length > 0) {
+          const { data: profilesData } = await supabase
+            .from('profiles')
+            .select('id, phone_number, full_name, email')
+            .in('id', userIds)
+
+          if (profilesData) {
+            profilesData.forEach((p) => {
+              profileMap[p.id] = p
+            })
+          }
+        }
+
+        const enriched: Booking[] = bookingsData.map((b: any) => ({
+          ...b,
+          phone_number: b.user_id ? profileMap[b.user_id]?.phone_number : null,
+          email: b.user_id ? profileMap[b.user_id]?.email : null
+        }))
+
+        setBookings(enriched)
+      } else {
+        setBookings([])
+      }
+    } catch (err) {
+      console.error('Failed to load manifest:', err)
+    } finally {
+      setLoading(false)
     }
-
-    setLoading(false)
   }
 
-  // Toggle passenger boarding status
   const toggleBoarding = async (booking: Booking) => {
     const updatedStatus = !booking.is_boarded
     const now = updatedStatus ? new Date().toISOString() : null
 
-    // Optimistic UI update
     setBookings((prev) =>
       prev.map((b) => (b.id === booking.id ? { ...b, is_boarded: updatedStatus } : b))
     )
@@ -135,7 +151,6 @@ export default function StewardManifestPage() {
       .eq('id', booking.id)
   }
 
-  // Mark Pay on Coach cash as collected
   const markCashPaid = async (booking: Booking) => {
     setBookings((prev) =>
       prev.map((b) => (b.id === booking.id ? { ...b, payment_status: 'paid' } : b))
@@ -147,8 +162,7 @@ export default function StewardManifestPage() {
       .eq('id', booking.id)
   }
 
-  // Helper: Format UK phone number for WhatsApp international URL (447...)
-  const formatWhatsAppNumber = (phone: string) => {
+  const formatWhatsAppNumber = (phone?: string) => {
     if (!phone) return ''
     let clean = phone.replace(/[^0-9]/g, '')
     if (clean.startsWith('0')) {
@@ -157,24 +171,20 @@ export default function StewardManifestPage() {
     return clean
   }
 
-  // Helper: Pre-composed matchday roll call message
   const getWhatsAppLink = (b: Booking) => {
-    const phone = b.profiles?.phone_number
-    if (!phone) return null
-
-    const internationalPhone = formatWhatsAppNumber(phone)
+    if (!b.phone_number) return null
+    const internationalPhone = formatWhatsAppNumber(b.phone_number)
     const coachNum = coach?.coach_number || 1
     const text = `Hi ${b.passenger_name.split(' ')[0]}, this is the Shrewsbury Town coach steward on Coach ${coachNum} at ${b.pickup_point}. We are preparing to depart shortly, are you nearby?`
 
     return `https://wa.me/${internationalPhone}?text=${encodeURIComponent(text)}`
   }
 
-  // Apply tab filters and search input
   const filteredBookings = bookings.filter((b) => {
     const matchesSearch =
       b.passenger_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       b.pickup_point.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (b.profiles?.phone_number && b.profiles.phone_number.includes(searchTerm))
+      (b.phone_number && b.phone_number.includes(searchTerm))
 
     if (!matchesSearch) return false
 
@@ -191,11 +201,10 @@ export default function StewardManifestPage() {
     .filter((b) => b.payment_method === 'pay_on_coach' && b.payment_status !== 'paid')
     .reduce((sum, b) => sum + Number(b.amount_paid), 0)
 
-  // Export CSV for Excel
   const exportCSV = () => {
     const headers = ['Passenger Name,Phone Number,Tier,Pickup Point,Payment Method,Payment Status,Amount Due,Boarded']
     const rows = bookings.map((b) =>
-      `"${b.passenger_name}","${b.profiles?.phone_number || 'N/A'}","${b.tier_name}","${b.pickup_point}","${b.payment_method}","${b.payment_status}","£${Number(b.amount_paid).toFixed(2)}","${b.is_boarded ? 'YES' : 'NO'}"`
+      `"${b.passenger_name}","${b.phone_number || 'N/A'}","${b.tier_name}","${b.pickup_point}","${b.payment_method}","${b.payment_status}","£${Number(b.amount_paid).toFixed(2)}","${b.is_boarded ? 'YES' : 'NO'}"`
     )
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers, ...rows].join('\n')
     const encodedUri = encodeURI(csvContent)
@@ -219,7 +228,7 @@ export default function StewardManifestPage() {
     <main className="min-h-screen bg-slate-50 dark:bg-[#070b14] text-slate-900 dark:text-slate-100 p-4 md:p-8 print:p-0 print:bg-white print:text-black transition-colors">
       <div className="max-w-4xl mx-auto space-y-6">
 
-        {/* Top Action Bar (Hidden on Print) */}
+        {/* Top Action Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden border-b border-slate-200 dark:border-[#1a2742] pb-4">
           <Link
             href="/admin/fixtures"
@@ -230,7 +239,6 @@ export default function StewardManifestPage() {
           </Link>
 
           <div className="flex items-center gap-2.5">
-            {/* View Mode Switcher */}
             <div className="flex items-center p-1 rounded-xl bg-white dark:bg-[#0e1726] border border-slate-200 dark:border-[#1a2742]">
               <button
                 type="button"
@@ -301,7 +309,6 @@ export default function StewardManifestPage() {
               </p>
             </div>
 
-            {/* Matchday Metrics */}
             <div className="flex flex-wrap items-center gap-2.5">
               <div className="rounded-xl border border-slate-200 dark:border-[#1a2742] bg-slate-50 dark:bg-[#0e1726] p-3 text-center min-w-[90px] print:border-slate-300">
                 <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 print:text-black block">Boarded</span>
@@ -326,11 +333,9 @@ export default function StewardManifestPage() {
             </div>
           </div>
 
-          {/* Roll Call Filter Tabs & Search Bar */}
           {digitalMode && (
             <div className="mt-6 pt-4 border-t border-slate-200 dark:border-[#1a2742] space-y-3 print:hidden">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                {/* 3 Status Filter Tabs */}
                 <div className="flex items-center p-1 rounded-xl bg-slate-100 dark:bg-[#070b14] border border-slate-200 dark:border-[#1a2742]">
                   <button
                     type="button"
@@ -372,7 +377,6 @@ export default function StewardManifestPage() {
                   </button>
                 </div>
 
-                {/* Quick Search */}
                 <div className="relative flex-1 sm:max-w-xs">
                   <Search className="h-4 w-4 text-slate-400 absolute left-3 top-2.5" />
                   <input
@@ -388,36 +392,23 @@ export default function StewardManifestPage() {
           )}
         </div>
 
-        {/* MODE 1: DIGITAL BOARDING VIEW */}
+        {/* Digital Mode View */}
         {digitalMode ? (
           <div className="space-y-3 print:hidden">
-            {/* Active Filter Banner when looking at Missing tab */}
-            {filterTab === 'missing' && missingCount > 0 && (
-              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-800 dark:text-amber-300 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-[#ffc72c] shrink-0" />
-                  <span>
-                    <strong>{missingCount} supporter(s)</strong> have not boarded. Use the call/WhatsApp buttons to check on their ETA before coach departure.
-                  </span>
-                </div>
-              </div>
-            )}
-
             {filteredBookings.length === 0 ? (
               <div className="rounded-2xl border border-slate-200 dark:border-[#1a2742] bg-white dark:bg-[#0a1220] p-10 text-center text-slate-500 text-sm">
-                {filterTab === 'missing' ? (
+                {filterTab === 'missing' && totalBooked > 0 ? (
                   <div className="space-y-2">
                     <CheckCircle2 className="h-8 w-8 text-emerald-500 mx-auto" />
                     <p className="font-bold text-slate-900 dark:text-white">All passengers are on board!</p>
-                    <p className="text-xs text-slate-500">Coach is fully accounted for and ready to roll.</p>
+                    <p className="text-xs text-slate-500">Coach is fully accounted for.</p>
                   </div>
                 ) : (
-                  'No passengers found matching search.'
+                  'No passengers found for this coach.'
                 )}
               </div>
             ) : (
               filteredBookings.map((b) => {
-                const phone = b.profiles?.phone_number
                 const whatsAppLink = getWhatsAppLink(b)
 
                 return (
@@ -430,7 +421,6 @@ export default function StewardManifestPage() {
                     }`}
                   >
                     <div className="flex items-start sm:items-center gap-3.5">
-                      {/* 1-Tap Boarding Toggle Checkbox */}
                       <button
                         type="button"
                         onClick={() => toggleBoarding(b)}
@@ -459,21 +449,19 @@ export default function StewardManifestPage() {
                             <MapPin className="h-3.5 w-3.5 text-blue-600 dark:text-[#ffc72c]" />
                             {b.pickup_point}
                           </span>
-                          {phone && (
+                          {b.phone_number && (
                             <span className="font-mono text-slate-700 dark:text-slate-300">
-                              {phone}
+                              {b.phone_number}
                             </span>
                           )}
                         </div>
                       </div>
                     </div>
 
-                    {/* Action Bar: Call, WhatsApp, Cash Collection */}
                     <div className="flex items-center justify-between sm:justify-end gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800">
-                      {/* Direct Call Button */}
-                      {phone && (
+                      {b.phone_number && (
                         <a
-                          href={`tel:${phone}`}
+                          href={`tel:${b.phone_number}`}
                           className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20 transition shadow-sm"
                           title="Call Supporter"
                         >
@@ -482,7 +470,6 @@ export default function StewardManifestPage() {
                         </a>
                       )}
 
-                      {/* Direct WhatsApp Ping */}
                       {whatsAppLink && (
                         <a
                           href={whatsAppLink}
@@ -496,7 +483,6 @@ export default function StewardManifestPage() {
                         </a>
                       )}
 
-                      {/* Pay on Coach Cash Button */}
                       {b.payment_method === 'pay_on_coach' && b.payment_status !== 'paid' ? (
                         <button
                           type="button"
@@ -518,7 +504,7 @@ export default function StewardManifestPage() {
             )}
           </div>
         ) : (
-          /* MODE 2: PRINT / PAPER MANIFEST TABLE */
+          /* Paper / Print View */
           <div className="rounded-2xl border border-slate-200 dark:border-[#1a2742] bg-white dark:bg-[#0a1220] overflow-hidden shadow-lg print:border-black print:bg-white">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
@@ -537,7 +523,7 @@ export default function StewardManifestPage() {
                     <td className="p-3 text-slate-500 print:text-slate-700 font-mono">{index + 1}</td>
                     <td className="p-3 font-bold text-slate-900 dark:text-white print:text-black">{b.passenger_name}</td>
                     <td className="p-3 font-mono text-slate-600 dark:text-slate-400 print:text-slate-800">
-                      {b.profiles?.phone_number || '—'}
+                      {b.phone_number || '—'}
                     </td>
                     <td className="p-3 text-slate-700 dark:text-slate-300 print:text-slate-800">{b.pickup_point}</td>
                     <td className="p-3 text-right">
