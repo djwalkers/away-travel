@@ -92,9 +92,20 @@ export default function HomePage() {
 
         {/* Navigation Header */}
         <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-salop-border pb-6">
-          <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-2xl bg-salop-gold/20 border border-salop-gold/40 flex items-center justify-center text-salop-gold font-black text-xl shadow-inner">
-              STFC
+          <div className="flex items-center gap-3.5">
+            {/* Shrewsbury Town FC Crest */}
+            <div className="h-12 w-12 rounded-2xl bg-salop-gold/10 border border-salop-gold/30 flex items-center justify-center p-1.5 shadow-inner shrink-0 overflow-hidden">
+              <img
+                src="/badge.png"
+                alt="Shrewsbury Town FC"
+                className="h-full w-full object-contain"
+                onError={(e) => {
+                  const target = e.currentTarget
+                  if (target.src.endsWith('/badge.png')) target.src = '/crest.png'
+                  else if (target.src.endsWith('/crest.png')) target.src = '/logo.png'
+                  else if (target.src.endsWith('/logo.png')) target.src = '/stfc.png'
+                }}
+              />
             </div>
             <div>
               <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
@@ -123,7 +134,6 @@ export default function HomePage() {
               {isMember ? 'Membership Active' : 'Join Club (£15)'}
             </Link>
 
-            {/* Admin Operations Shortcut */}
             {isAdmin && (
               <Link
                 href="/admin/fixtures"
@@ -157,7 +167,7 @@ export default function HomePage() {
           </div>
         </header>
 
-        {/* Membership Promo Card if not yet a member */}
+        {/* Membership Promo Card */}
         {!isMember && (
           <div className="rounded-2xl border border-salop-gold/40 bg-gradient-to-r from-salop-card to-salop-surface p-5 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
