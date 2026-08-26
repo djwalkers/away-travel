@@ -84,6 +84,7 @@ export default function HomePage() {
   }
 
   const isMember = Boolean(profile?.is_member || (profile?.membership_number && profile.membership_number.trim() !== ''))
+  const isAdmin = Boolean(profile?.is_admin)
 
   return (
     <main className="min-h-screen bg-slate-50 dark:bg-salop-night text-slate-900 dark:text-slate-100 p-4 sm:p-6 md:p-12 transition-colors">
@@ -121,6 +122,17 @@ export default function HomePage() {
               <Award className="h-4 w-4" />
               {isMember ? 'Membership Active' : 'Join Club (£15)'}
             </Link>
+
+            {/* Admin Operations Shortcut */}
+            {isAdmin && (
+              <Link
+                href="/admin/fixtures"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-salop-gold/40 bg-salop-gold/10 px-3.5 py-2 text-xs font-black text-salop-gold hover:bg-salop-gold/20 transition shadow-sm"
+              >
+                <ShieldCheck className="h-4 w-4" />
+                Admin Panel
+              </Link>
+            )}
 
             {user ? (
               <Link
