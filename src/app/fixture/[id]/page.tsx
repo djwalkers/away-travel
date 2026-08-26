@@ -20,7 +20,8 @@ import {
   CreditCard,
   Banknote,
   Sparkles,
-  UserPlus
+  UserPlus,
+  Award
 } from 'lucide-react'
 
 export default function FixtureBookingPage() {
@@ -48,7 +49,6 @@ export default function FixtureBookingPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   // Waiting List State
-  const [showWaitlistModal, setShowWaitlistModal] = useState(false)
   const [waitlistSeats, setWaitlistSeats] = useState(1)
   const [waitlistSuccess, setWaitlistSuccess] = useState(false)
 
@@ -121,7 +121,7 @@ export default function FixtureBookingPage() {
       if (!passengerName.trim()) throw new Error('Please enter passenger full name.')
       if (!phoneNumber.trim()) throw new Error('Please provide a contact mobile number for matchday roll call.')
 
-      // Atomic Server-Side Booking RPC
+      // Atomic Server-Side Booking RPC (Validates server-side membership pricing)
       const { data, error } = await supabase.rpc('create_booking_atomic', {
         p_fixture_id: fixtureId,
         p_coach_id: selectedCoachId,
@@ -178,12 +178,16 @@ export default function FixtureBookingPage() {
 
   const selectedCoach = coaches.find((c) => c.id === selectedCoachId)
   const seatsLeft = selectedCoach ? Math.max(0, selectedCoach.seat_capacity - selectedCoach.booked_count) : 0
-  const isMember = Boolean(profile?.membership_number && profile.membership_number.trim() !== '')
+  const isMember = Boolean(profile?.is_member || (profile?.membership_number && profile.membership_number.trim() !== ''))
 
   const currentTier = pricingTiers.find((t) => t.tier_name === selectedTier)
   const priceToPay = isMember && currentTier?.member_price
     ? Number(currentTier.member_price)
     : Number(currentTier?.standard_price || 20)
+  
+  const discountSaved = currentTier && currentTier.member_price
+    ? Math.max(0, Number(currentTier.standard_price) - Number(currentTier.member_price))
+    : 0
 
   return (
     <main className="min-h-screen bg-slate-50 dark:bg-salop-night text-slate-900 dark:text-slate-100 p-6 md:p-12 transition-colors">
@@ -250,6 +254,40 @@ export default function FixtureBookingPage() {
             </div>
           </div>
         </div>
+
+        {/* Membership Discount Callout Banner */}
+        {isMember ? (
+          <div className="rounded-2xl border border-salop-gold/30 bg-salop-gold/10 p-4 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2.5">
+              <Award className="h-5 w-5 text-salop-gold shrink-0" />
+              <div>
+                <span className="font-bold text-white block">Official Member Discount Active</span>
+                <span className="text-slate-400">Saving applied automatically to your account (Member #{profile?.membership_number})</span>
+              </div>
+            </div>
+            {discountSaved > 0 && (
+              <span className="px-2.5 py-1 rounded-lg bg-salop-gold text-salop-night font-black">
+                -£{discountSaved.toFixed(2)} Off
+              </span>
+            )}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-salop-border bg-salop-surface p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2.5">
+              <Sparkles className="h-5 w-5 text-salop-gold shrink-0" />
+              <div>
+                <span className="font-bold text-white block">Not a Travel Club Member?</span>
+                <span className="text-slate-400">Join for £15/year to unlock reduced fares on every away fixture!</span>
+              </div>
+            </div>
+            <Link
+              href="/membership"
+              className="px-4 py-2 rounded-xl bg-salop-gold text-salop-night font-black hover:opacity-90 transition text-center shrink-0"
+            >
+              Get Membership (£15)
+            </Link>
+          </div>
+        )}
 
         {/* SUCCESS STATE */}
         {bookingSuccess ? (
@@ -472,7 +510,7 @@ export default function FixtureBookingPage() {
               </select>
             </div>
 
-            {/* Payment Method Notice */}
+            {/* Payment Notice */}
             <div className="rounded-xl border border-salop-border bg-salop-surface p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="h-9 w-9 rounded-lg bg-salop-gold/10 text-salop-gold flex items-center justify-center">

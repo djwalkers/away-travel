@@ -26,7 +26,12 @@ import {
   Loader2,
   ExternalLink,
   MapPin,
-  X
+  X,
+  Award,
+  Search,
+  UserCheck,
+  UserX,
+  Plus
 } from 'lucide-react'
 
 const STADIUM_DISTANCES: Record<string, number> = {
@@ -47,10 +52,12 @@ const STADIUM_DISTANCES: Record<string, number> = {
 export default function CommitteeHubPage() {
   const supabase = createClient()
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'analytics' | 'waitlist' | 'broadcast' | 'pl'>('analytics')
+  const [activeTab, setActiveTab] = useState<'analytics' | 'members' | 'waitlist' | 'broadcast' | 'pl'>('analytics')
 
   const [fixtures, setFixtures] = useState<any[]>([])
   const [waitlist, setWaitlist] = useState<any[]>([])
+  const [supporters, setSupporters] = useState<any[]>([])
+  const [supporterSearch, setSupporterSearch] = useState('')
   const [selectedFixtureForBroadcast, setSelectedFixtureForBroadcast] = useState<any | null>(null)
   const [copiedText, setCopiedText] = useState(false)
 
@@ -60,6 +67,12 @@ export default function CommitteeHubPage() {
   const [isPromoting, setIsPromoting] = useState(false)
   const [promotionResult, setPromotionResult] = useState<any | null>(null)
 
+  // Manual Member Grant Modal
+  const [grantingUser, setGrantingUser] = useState<any | null>(null)
+  const [customMemNumber, setCustomMemNumber] = useState('')
+  const [paymentSource, setPaymentSource] = useState('cash_on_coach')
+  const [grantingLoading, setGrantingLoading] = useState(false)
+
   useEffect(() => {
     loadCommitteeData()
   }, [])
@@ -67,6 +80,7 @@ export default function CommitteeHubPage() {
   async function loadCommitteeData() {
     setLoading(true)
 
+    // 1. Fetch Fixtures with Coaches & Bookings
     const { data: fixData } = await supabase
       .from('fixtures')
       .select(`
@@ -110,6 +124,7 @@ export default function CommitteeHubPage() {
       if (released.length > 0) setSelectedFixtureForBroadcast(released[0])
     }
 
+    // 2. Fetch Active Waiting List
     const { data: waitData } = await supabase
       .from('waiting_list')
       .select('*, fixtures(opponent, venue, match_date)')
@@ -117,6 +132,14 @@ export default function CommitteeHubPage() {
       .order('created_at', { ascending: true })
 
     if (waitData) setWaitlist(waitData)
+
+    // 3. Fetch Supporter Profiles for Member Registry
+    const { data: profilesData } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('full_name', { ascending: true })
+
+    if (profilesData) setSupporters(profilesData)
 
     setLoading(false)
   }
@@ -183,6 +206,45 @@ export default function CommitteeHubPage() {
     }
   }
 
+  const handleGrantMembershipSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!grantingUser) return
+
+    setGrantingLoading(true)
+    try {
+      const { error } = await supabase.rpc('admin_grant_membership', {
+        p_user_id: grantingUser.id,
+        p_custom_membership_number: customMemNumber.trim() || null,
+        p_season: '2026/27',
+        p_payment_method: paymentSource
+      })
+
+      if (error) throw error
+
+      setGrantingUser(null)
+      setCustomMemNumber('')
+      loadCommitteeData()
+    } catch (err: any) {
+      alert('Failed to grant membership: ' + err.message)
+    } finally {
+      setGrantingLoading(false)
+    }
+  }
+
+  const handleRevokeMembership = async (userProfile: any) => {
+    if (!confirm(`Revoke member status for ${userProfile.full_name || 'this supporter'}?`)) return
+
+    try {
+      const { error } = await supabase.rpc('admin_revoke_membership', {
+        p_user_id: userProfile.id
+      })
+      if (error) throw error
+      loadCommitteeData()
+    } catch (err: any) {
+      alert('Failed to revoke membership: ' + err.message)
+    }
+  }
+
   const generateBroadcastCopy = (fixture: any) => {
     if (!fixture) return ''
 
@@ -231,6 +293,19 @@ export default function CommitteeHubPage() {
     setTimeout(() => setCopiedText(false), 3000)
   }
 
+  const filteredSupporters = supporters.filter((s) => {
+    const term = supporterSearch.toLowerCase().trim()
+    if (!term) return true
+    return (
+      (s.full_name && s.full_name.toLowerCase().includes(term)) ||
+      (s.phone_number && s.phone_number.includes(term)) ||
+      (s.membership_number && s.membership_number.toLowerCase().includes(term)) ||
+      (s.email && s.email.toLowerCase().includes(term))
+    )
+  })
+
+  const totalMembersCount = supporters.filter((s) => s.is_member || s.membership_number).length
+
   if (loading) {
     return (
       <div className="min-h-screen bg-salop-night text-slate-100 flex items-center justify-center">
@@ -256,7 +331,7 @@ export default function CommitteeHubPage() {
               Committee & Fleet Management
             </h1>
             <p className="text-xs text-slate-400 mt-0.5">
-              Executive reporting, waitlist priority management, P&L reconciliations, and social broadcast tools.
+              Executive reporting, membership verification, waitlist priorities, and P&L reconciliations.
             </p>
           </div>
 
@@ -270,7 +345,7 @@ export default function CommitteeHubPage() {
           </div>
         </div>
 
-        {/* 4 Navigation Tabs */}
+        {/* 5 Navigation Tabs */}
         <div className="flex flex-wrap items-center gap-2 border-b border-salop-border pb-1">
           <button
             onClick={() => setActiveTab('analytics')}
@@ -281,7 +356,19 @@ export default function CommitteeHubPage() {
             }`}
           >
             <PieChart className="h-4 w-4" />
-            Season KPIs & Occupancy
+            Season KPIs
+          </button>
+
+          <button
+            onClick={() => setActiveTab('members')}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition ${
+              activeTab === 'members'
+                ? 'bg-salop-blue dark:bg-salop-gold text-white dark:text-salop-night shadow'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Award className="h-4 w-4" />
+            Supporters & Members ({totalMembersCount})
           </button>
 
           <button
@@ -293,7 +380,7 @@ export default function CommitteeHubPage() {
             }`}
           >
             <UserPlus className="h-4 w-4" />
-            Waitlist Priority Manager ({waitlist.length})
+            Waitlist Queue ({waitlist.length})
           </button>
 
           <button
@@ -305,7 +392,7 @@ export default function CommitteeHubPage() {
             }`}
           >
             <Share2 className="h-4 w-4" />
-            Social & WhatsApp Broadcast
+            WhatsApp Broadcast
           </button>
 
           <button
@@ -401,7 +488,101 @@ export default function CommitteeHubPage() {
           </div>
         )}
 
-        {/* TAB 2: 1-CLICK WAITING LIST AUTO-PROMOTION */}
+        {/* TAB 2: SUPPORTERS & MEMBERS REGISTRY (MANUAL GRANT / VERIFY) */}
+        {activeTab === 'members' && (
+          <div className="space-y-6">
+            <div className="rounded-2xl border border-salop-border bg-salop-card p-6 shadow-xl space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-salop-border pb-4">
+                <div>
+                  <h3 className="font-bold text-white text-base flex items-center gap-2">
+                    <Award className="h-5 w-5 text-salop-gold" />
+                    Supporters Club Membership Registry
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Mark supporters as members if they paid on the coach, paid by bank transfer, or hold pre-launch memberships.
+                  </p>
+                </div>
+
+                <div className="relative flex-1 sm:max-w-xs">
+                  <Search className="h-4 w-4 text-slate-400 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    placeholder="Search name, phone, member #..."
+                    value={supporterSearch}
+                    onChange={(e) => setSupporterSearch(e.target.value)}
+                    className="w-full rounded-xl border border-salop-border bg-salop-night pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-salop-gold"
+                  />
+                </div>
+              </div>
+
+              {filteredSupporters.length === 0 ? (
+                <div className="p-8 text-center text-slate-500 text-sm">No supporters found matching search.</div>
+              ) : (
+                <div className="divide-y divide-salop-border">
+                  {filteredSupporters.map((s) => {
+                    const isMember = Boolean(s.is_member || s.membership_number)
+
+                    return (
+                      <div key={s.id} className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-white text-sm">
+                              {s.full_name || 'Supporter (No Name)'}
+                            </span>
+                            {isMember ? (
+                              <span className="px-2.5 py-0.5 rounded-full bg-salop-gold/20 text-salop-gold border border-salop-gold/40 text-[10px] font-black">
+                                ✓ Member #{s.membership_number}
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 text-[10px] font-medium">
+                                Non-Member
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400">
+                            {s.phone_number && (
+                              <span className="flex items-center gap-1 font-mono">
+                                <Phone className="h-3 w-3 text-emerald-400" />
+                                {s.phone_number}
+                              </span>
+                            )}
+                            {s.email && <span>{s.email}</span>}
+                            {s.preferred_pickup && <span>Default: {s.preferred_pickup}</span>}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {isMember ? (
+                            <button
+                              onClick={() => handleRevokeMembership(s)}
+                              className="px-3 py-1.5 rounded-xl border border-rose-500/30 text-rose-400 text-xs font-bold hover:bg-rose-500/10 transition"
+                            >
+                              Revoke Member
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setGrantingUser(s)
+                                setCustomMemNumber('')
+                              }}
+                              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-salop-gold text-salop-night text-xs font-black hover:opacity-90 transition shadow"
+                            >
+                              <UserCheck className="h-3.5 w-3.5" />
+                              Grant / Verify Member
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: 1-CLICK WAITING LIST AUTO-PROMOTION */}
         {activeTab === 'waitlist' && (
           <div className="space-y-4">
             <div className="rounded-2xl border border-salop-border bg-salop-card p-6 shadow-xl space-y-4">
@@ -496,7 +677,7 @@ export default function CommitteeHubPage() {
           </div>
         )}
 
-        {/* TAB 3: SOCIAL & WHATSAPP BROADCAST */}
+        {/* TAB 4: SOCIAL & WHATSAPP BROADCAST */}
         {activeTab === 'broadcast' && (
           <div className="grid md:grid-cols-3 gap-6">
             <div className="md:col-span-1 space-y-4">
@@ -563,7 +744,7 @@ export default function CommitteeHubPage() {
           </div>
         )}
 
-        {/* TAB 4: TRIP FINANCIALS & P&L */}
+        {/* TAB 5: TRIP FINANCIALS & P&L */}
         {activeTab === 'pl' && (
           <div className="space-y-6">
             <div className="grid grid-cols-3 gap-4">
@@ -636,7 +817,77 @@ export default function CommitteeHubPage() {
           </div>
         )}
 
-        {/* Promotion Confirmation Modal */}
+        {/* Modal: Grant / Verify Supporter Membership */}
+        {grantingUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <div className="w-full max-w-md rounded-2xl border border-salop-border bg-salop-card p-6 shadow-2xl space-y-4">
+              <div className="border-b border-salop-border pb-3 flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-bold uppercase text-salop-gold">Supporter Club Admin Override</span>
+                  <h3 className="text-lg font-black text-white">Grant Member Status</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">For {grantingUser.full_name || grantingUser.email}</p>
+                </div>
+                <button
+                  onClick={() => setGrantingUser(null)}
+                  className="text-slate-400 hover:text-white"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleGrantMembershipSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                    Membership Number (Optional / Custom)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Leave blank to auto-generate STFC-26-XXXX"
+                    value={customMemNumber}
+                    onChange={(e) => setCustomMemNumber(e.target.value)}
+                    className="w-full rounded-xl border border-salop-border bg-salop-night px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-salop-gold font-mono"
+                  />
+                  <span className="text-[10px] text-slate-500 block mt-1">If they hold an existing physical card (e.g. STFC-8492), type it here.</span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                    Payment Origin
+                  </label>
+                  <select
+                    value={paymentSource}
+                    onChange={(e) => setPaymentSource(e.target.value)}
+                    className="w-full rounded-xl border border-salop-border bg-salop-night px-3 py-2 text-xs text-white focus:outline-none focus:border-salop-gold"
+                  >
+                    <option value="cash_on_coach">Paid Cash on Coach (£15)</option>
+                    <option value="bank_transfer">Bank Transfer / Direct Debit (£15)</option>
+                    <option value="legacy_pre_launch">Legacy Member (Pre-Website Launch)</option>
+                    <option value="honorary_committee">Committee / Honorary Member (£0)</option>
+                  </select>
+                </div>
+
+                <div className="pt-2 border-t border-salop-border flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setGrantingUser(null)}
+                    className="rounded-xl border border-salop-border px-4 py-2 text-xs font-semibold text-slate-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={grantingLoading}
+                    className="rounded-xl bg-salop-gold px-5 py-2 text-xs font-black text-salop-night hover:opacity-90 transition shadow-lg disabled:opacity-50"
+                  >
+                    {grantingLoading ? 'Activating...' : 'Confirm & Activate Membership'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Promotion Modal */}
         {promotingEntry && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
             <div className="w-full max-w-md rounded-2xl border border-salop-border bg-salop-card p-6 shadow-2xl space-y-4">
