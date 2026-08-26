@@ -1,341 +1,283 @@
+'use client'
+
+import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/server'
-import SignOutButton from '@/components/SignOutButton'
+import { createClient } from '@/lib/supabase/client'
 import ThemeToggle from '@/components/ThemeToggle'
+import SignOutButton from '@/components/SignOutButton'
 import {
   Calendar,
   Clock,
   MapPin,
-  ArrowRight,
-  User,
-  ShieldAlert,
-  Compass,
   Bus,
-  Sparkles,
-  UserPlus
+  Award,
+  Compass,
+  ArrowRight,
+  ShieldCheck,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  Ticket,
+  User
 } from 'lucide-react'
 
-export const revalidate = 0
+export default function HomePage() {
+  const supabase = createClient()
+  const [loading, setLoading] = useState(true)
+  const [fixtures, setFixtures] = useState<any[]>([])
+  const [user, setUser] = useState<any>(null)
+  const [profile, setProfile] = useState<any>(null)
 
-export default async function HomePage() {
-  const supabase = await createClient()
+  useEffect(() => {
+    loadHomeData()
+  }, [])
 
-  const {
-    data: { user }
-  } = await supabase.auth.getUser()
+  async function loadHomeData() {
+    setLoading(true)
+    const { data: { user: authUser } } = await supabase.auth.getUser()
+    setUser(authUser)
 
-  let isAdmin = false
+    if (authUser) {
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authUser.id)
+        .single()
+      if (prof) setProfile(prof)
+    }
 
-  if (user) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('is_admin')
-      .eq('id', user.id)
-      .single()
+    const { data: fixData } = await supabase
+      .from('fixtures')
+      .select(`
+        id,
+        opponent,
+        venue,
+        match_date,
+        kickoff_time,
+        departure_time,
+        is_released,
+        coaches (
+          id,
+          coach_number,
+          seat_capacity,
+          is_active,
+          bookings (id, payment_status)
+        ),
+        pricing_tiers (
+          tier_name,
+          standard_price,
+          member_price
+        )
+      `)
+      .order('match_date', { ascending: true })
 
-    isAdmin = !!profile?.is_admin
+    if (fixData) setFixtures(fixData)
+    setLoading(false)
   }
 
-  const { data: fixtures } = await supabase
-    .from('fixtures')
-    .select(`
-      id,
-      opponent,
-      venue,
-      match_date,
-      kickoff_time,
-      departure_time,
-      pickup_location,
-      is_active,
-      is_released,
-      coaches (
-        id,
-        coach_number,
-        seat_capacity,
-        is_active,
-        bookings (id, payment_status)
-      ),
-      pricing_tiers (
-        tier_name,
-        standard_price,
-        member_price
-      )
-    `)
-    .order('match_date', { ascending: true })
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-salop-night text-slate-100 flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-salop-gold" />
+      </div>
+    )
+  }
+
+  const isMember = Boolean(profile?.is_member || (profile?.membership_number && profile.membership_number.trim() !== ''))
 
   return (
-    <main className="min-h-screen bg-slate-50 dark:bg-[#070b14] text-slate-900 dark:text-slate-100 p-6 md:p-12 transition-colors">
-      <div className="max-w-5xl mx-auto space-y-10">
-        
-        {/* Header */}
-        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-[#1a2742] pb-6">
-          <div className="flex items-center gap-3.5">
-            <div className="relative h-14 w-14 shrink-0 flex items-center justify-center p-0.5 rounded-2xl bg-white dark:bg-[#0e1726] border border-slate-200 dark:border-[#1a2742] shadow-xl overflow-hidden">
-              <img
-                src="/crest.webp"
-                alt="Shrewsbury Town FC Crest"
-                className="h-full w-full object-contain"
-              />
+    <main className="min-h-screen bg-slate-50 dark:bg-salop-night text-slate-900 dark:text-slate-100 p-4 sm:p-6 md:p-12 transition-colors">
+      <div className="max-w-5xl mx-auto space-y-8">
+
+        {/* Navigation Header */}
+        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-salop-border pb-6">
+          <div className="flex items-center gap-3">
+            <div className="h-12 w-12 rounded-2xl bg-salop-gold/20 border border-salop-gold/40 flex items-center justify-center text-salop-gold font-black text-xl shadow-inner">
+              STFC
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
-                  Away Travel Club
-                </h1>
-                <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-[10px] font-bold text-amber-700 dark:text-[#ffc72c] uppercase tracking-wider">
-                  Official Travel
-                </span>
-              </div>
-              <p className="text-slate-600 dark:text-slate-400 text-xs">
-                Official supporter coach travel • Floreat Salopia
+              <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+                Away Travel Club
+              </h1>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Official Shrewsbury Town Supporters Away Coach Travel (2026/27)
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <Link
               href="/tracker"
-              className="inline-flex items-center gap-1.5 rounded-xl bg-white dark:bg-[#0e1726] border border-slate-200 dark:border-[#1a2742] px-3.5 py-2 text-xs font-bold text-slate-800 dark:text-[#ffc72c] hover:bg-slate-100 dark:hover:bg-[#1a2742] transition shadow-sm"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-salop-border bg-salop-card px-3.5 py-2 text-xs font-bold text-slate-300 hover:text-white transition shadow-sm"
             >
-              <Compass className="h-3.5 w-3.5 text-blue-600 dark:text-[#ffc72c]" />
-              92 Stadium Tracker
+              <Compass className="h-4 w-4 text-salop-blue" />
+              92 Tracker
+            </Link>
+
+            <Link
+              href="/membership"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-salop-gold px-4 py-2 text-xs font-black text-salop-night hover:opacity-90 transition shadow-md"
+            >
+              <Award className="h-4 w-4" />
+              {isMember ? 'Membership Active' : 'Join Club (£15)'}
             </Link>
 
             {user ? (
-              <div className="flex items-center gap-2">
-                {isAdmin && (
-                  <Link
-                    href="/admin/fixtures"
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 px-3.5 py-2 text-xs font-bold text-amber-700 dark:text-amber-400 hover:bg-amber-500/20 transition shadow-sm"
-                  >
-                    <ShieldAlert className="h-3.5 w-3.5" />
-                    Admin Portal
-                  </Link>
-                )}
-                <Link
-                  href="/account"
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-white dark:bg-[#0e1726] border border-slate-200 dark:border-[#1a2742] px-3.5 py-2 text-xs font-bold text-slate-800 dark:text-white hover:bg-slate-100 dark:hover:bg-[#1a2742] transition shadow-sm"
-                >
-                  <User className="h-3.5 w-3.5 text-blue-600 dark:text-[#ffc72c]" />
-                  My Account
-                </Link>
-                <SignOutButton />
-              </div>
+              <Link
+                href="/account"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-salop-border bg-salop-card px-3.5 py-2 text-xs font-bold text-white hover:bg-salop-surface transition"
+              >
+                <Ticket className="h-4 w-4 text-salop-gold" />
+                My Passes
+              </Link>
             ) : (
-              <div className="flex items-center gap-2">
-                <Link
-                  href="/login"
-                  className="rounded-xl border border-slate-200 dark:border-[#1a2742] bg-white dark:bg-[#0e1726] px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#1a2742] transition"
-                >
-                  Sign In
-                </Link>
-                <Link
-                  href="/register"
-                  className="rounded-xl bg-[#0057b8] dark:bg-[#ffc72c] px-4 py-2 text-xs font-black text-white dark:text-[#070b14] hover:opacity-90 transition shadow-lg"
-                >
-                  Join Club
-                </Link>
-              </div>
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-salop-border bg-salop-card px-3.5 py-2 text-xs font-bold text-slate-300 hover:text-white transition"
+              >
+                <User className="h-4 w-4" />
+                Sign In
+              </Link>
             )}
 
             <ThemeToggle />
+            {user && <SignOutButton />}
           </div>
         </header>
 
-        {/* Hero Section */}
-        <section className="rounded-3xl border border-slate-200 dark:border-[#1a2742] bg-white dark:bg-[#0a1220] p-6 md:p-8 shadow-xl space-y-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <div className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-[#ffc72c] uppercase tracking-wider mb-1">
-                <Sparkles className="h-3.5 w-3.5" />
-                Follow Salop On The Road
+        {/* Membership Promo Card if not yet a member */}
+        {!isMember && (
+          <div className="rounded-2xl border border-salop-gold/40 bg-gradient-to-r from-salop-card to-salop-surface p-5 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="h-10 w-10 rounded-xl bg-salop-gold/20 text-salop-gold flex items-center justify-center shrink-0">
+                <Award className="h-6 w-6" />
               </div>
-              <h2 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white">
-                Official Season Away Travel Schedule
-              </h2>
-              <p className="text-xs md:text-sm text-slate-600 dark:text-slate-300 mt-1 max-w-2xl">
-                Reliable supporter coach travel for every Shrewsbury Town away match. View upcoming fixtures, live seat availability, and book online.
-              </p>
+              <div>
+                <h3 className="text-sm font-black text-white">Save £2–£5 on Every Away Coach Trip</h3>
+                <p className="text-xs text-slate-400">Join the official Supporters Travel Club for £15/season to unlock member discounts.</p>
+              </div>
             </div>
-
-            {!user && (
-              <Link
-                href="/register"
-                className="shrink-0 inline-flex items-center gap-2 rounded-2xl bg-[#0057b8] dark:bg-[#ffc72c] px-5 py-3 text-xs font-black text-white dark:text-[#070b14] hover:opacity-90 transition shadow-lg"
-              >
-                Join & Save on Fares
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            )}
+            <Link
+              href="/membership"
+              className="rounded-xl bg-salop-gold px-4 py-2 text-xs font-black text-salop-night hover:opacity-90 transition shadow text-center shrink-0"
+            >
+              Get Membership
+            </Link>
           </div>
-        </section>
+        )}
 
-        {/* Fixtures Section */}
-        <section className="space-y-6">
+        {/* Fixtures Schedule */}
+        <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <Bus className="h-5 w-5 text-blue-600 dark:text-[#ffc72c]" />
-              Away Fixtures & Travel Status
+            <h2 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-salop-gold" />
+              Upcoming Away Fixtures
             </h2>
-            <span className="text-xs text-slate-500 dark:text-slate-400">
-              {fixtures?.length || 0} fixtures on calendar
-            </span>
+            <span className="text-xs text-slate-500">{fixtures.length} matches listed</span>
           </div>
 
-          {!fixtures || fixtures.length === 0 ? (
-            <div className="rounded-2xl border border-slate-200 dark:border-[#1a2742] bg-white dark:bg-[#0a1220] p-10 text-center text-slate-500 dark:text-slate-400">
-              No away fixtures scheduled.
-            </div>
-          ) : (
-            <div className="grid gap-6 md:grid-cols-2">
-              {fixtures.map((fixture) => {
-                const activeCoaches = fixture.coaches?.filter((c: any) => c.is_active) || []
-                const isReleased = Boolean(fixture.is_released && fixture.is_active && activeCoaches.length > 0)
-
-                let totalCapacity = 0
-                let totalBooked = 0
-
-                activeCoaches.forEach((coach: any) => {
-                  totalCapacity += coach.seat_capacity
-                  const booked = coach.bookings?.filter((b: any) => b.payment_status !== 'cancelled') || []
-                  totalBooked += booked.length
-                })
-
-                const seatsRemaining = Math.max(0, totalCapacity - totalBooked)
-                const adultPrice = fixture.pricing_tiers?.find((p: any) => p.tier_name === 'Adult')
+          <div className="grid gap-4">
+            {fixtures.length === 0 ? (
+              <div className="rounded-2xl border border-salop-border bg-salop-card p-12 text-center text-slate-500 text-sm">
+                No upcoming away fixtures found. Check back shortly!
+              </div>
+            ) : (
+              fixtures.map((f) => {
+                const activeCoaches = (f.coaches || []).filter((c: any) => c.is_active)
+                const totalCap = activeCoaches.reduce((s: number, c: any) => s + c.seat_capacity, 0)
+                const totalBooked = activeCoaches.reduce(
+                  (s: number, c: any) =>
+                    s + (c.bookings?.filter((b: any) => b.payment_status !== 'cancelled').length || 0),
+                  0
+                )
+                const seatsLeft = Math.max(0, totalCap - totalBooked)
+                const adultTier = f.pricing_tiers?.find((t: any) => t.tier_name === 'Adult')
 
                 return (
                   <div
-                    key={fixture.id}
-                    className={`flex flex-col justify-between rounded-2xl border p-6 shadow-xl transition ${
-                      isReleased
-                        ? 'border-slate-200 dark:border-[#1a2742] bg-white dark:bg-[#0a1220] hover:border-blue-500 dark:hover:border-blue-600'
-                        : 'border-slate-200/60 dark:border-[#1a2742]/60 bg-white/70 dark:bg-[#0a1220]/70'
-                    }`}
+                    key={f.id}
+                    className="rounded-2xl border border-salop-border bg-salop-card p-5 sm:p-6 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-salop-gold/50 transition"
                   >
-                    <div>
-                      {/* Top Header & Status Badge */}
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 dark:text-[#ffc72c]">
-                            Away Match
-                          </span>
-                          <h3 className="text-2xl font-black text-slate-900 dark:text-white mt-0.5">
-                            {fixture.opponent}
-                          </h3>
-                          <p className="text-sm text-slate-600 dark:text-slate-300">{fixture.venue}</p>
-                        </div>
-
-                        {/* Status Badges */}
-                        {!isReleased ? (
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 shrink-0">
-                            Travel TBC
-                          </span>
-                        ) : seatsRemaining === 0 ? (
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 shrink-0">
-                            Sold Out
-                          </span>
+                    <div className="space-y-1.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-xl font-black text-white">
+                          vs {f.opponent}
+                        </h3>
+                        {f.is_released ? (
+                          seatsLeft > 0 ? (
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                              {seatsLeft} Seats Left
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-salop-gold border border-amber-500/30">
+                              Waiting List Open
+                            </span>
+                          )
                         ) : (
-                          <span
-                            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold shrink-0 ${
-                              seatsRemaining <= 10
-                                ? 'bg-amber-500/10 text-amber-700 dark:text-[#ffc72c] border border-amber-500/30'
-                                : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20'
-                            }`}
-                          >
-                            {seatsRemaining} seats left
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400">
+                            Travel TBC
                           </span>
                         )}
                       </div>
 
-                      {/* Match Details */}
-                      <div className="mt-6 space-y-2.5 text-sm text-slate-700 dark:text-slate-200">
-                        <div className="flex items-center gap-2.5">
-                          <Calendar className="h-4 w-4 text-blue-600 dark:text-[#ffc72c]" />
-                          <span>
-                            {new Date(fixture.match_date).toLocaleDateString('en-GB', {
-                              timeZone: 'Europe/London',
-                              weekday: 'short',
-                              day: 'numeric',
-                              month: 'short',
-                              year: 'numeric',
-                            })}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2.5">
-                          <Clock className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                          <span>
-                            {isReleased ? (
-                              <>
-                                Departs:{' '}
-                                <strong className="text-slate-900 dark:text-white">
-                                  {fixture.departure_time?.slice(0, 5) || 'TBD'}
-                                </strong>{' '}
-                                (KO: {fixture.kickoff_time?.slice(0, 5) || 'TBD'})
-                              </>
-                            ) : (
-                              <>Kickoff: {fixture.kickoff_time?.slice(0, 5) || 'TBD'} • Departure TBC</>
-                            )}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2.5">
-                          <MapPin className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-                          <span className="text-slate-600 dark:text-slate-300">
-                            Pickup: {isReleased ? fixture.pickup_location || 'Shropshire Stops' : 'Stops Announced on Release'}
-                          </span>
-                        </div>
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400">
+                        <span className="flex items-center gap-1">
+                          <MapPin className="h-3.5 w-3.5 text-salop-gold" />
+                          {f.venue}
+                        </span>
+                        <span>•</span>
+                        <span>
+                          {new Date(f.match_date).toLocaleDateString('en-GB', {
+                            timeZone: 'Europe/London',
+                            weekday: 'short',
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric'
+                          })}
+                        </span>
+                        <span>•</span>
+                        <span>KO: {f.kickoff_time?.slice(0, 5) || '15:00'}</span>
                       </div>
                     </div>
 
-                    {/* Bottom Booking Action Bar */}
-                    <div className="mt-8 flex items-center justify-between border-t border-slate-200 dark:border-[#1a2742] pt-4">
-                      <div>
-                        <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
-                          {isReleased ? 'From' : 'Fare'}
-                        </span>
-                        <div className="flex items-baseline gap-1">
-                          {isReleased && adultPrice?.member_price ? (
-                            <>
-                              <span className="text-xl font-black text-slate-900 dark:text-white">
-                                £{Number(adultPrice.member_price).toFixed(2)}
-                              </span>
-                              <span className="text-xs font-bold text-blue-600 dark:text-[#ffc72c]">(Member)</span>
-                            </>
-                          ) : (
-                            <span className="text-sm font-bold text-slate-500 dark:text-slate-400">Pricing TBC</span>
-                          )}
+                    <div className="flex flex-wrap items-center gap-4">
+                      {adultTier && (
+                        <div className="text-left sm:text-right">
+                          <span className="text-[10px] text-slate-400 block uppercase font-bold">Fare</span>
+                          <span className="text-lg font-black text-white">
+                            £{isMember && adultTier.member_price ? Number(adultTier.member_price).toFixed(2) : Number(adultTier.standard_price).toFixed(2)}
+                          </span>
+                          {isMember && <span className="text-[10px] text-salop-gold font-bold block">Member Rate</span>}
                         </div>
-                      </div>
+                      )}
 
-                      {/* Action Button */}
-                      {!isReleased ? (
-                        <span className="rounded-xl border border-slate-200 dark:border-[#1a2742] bg-slate-100 dark:bg-[#0e1726] px-4 py-2.5 text-xs font-bold text-slate-500 dark:text-slate-400 cursor-default">
-                          Travel Details Soon
-                        </span>
-                      ) : seatsRemaining > 0 ? (
+                      {f.is_released ? (
                         <Link
-                          href={`/fixture/${fixture.id}`}
-                          className="inline-flex items-center gap-2 rounded-xl bg-[#0057b8] dark:bg-[#ffc72c] px-5 py-2.5 text-sm font-black text-white dark:text-[#070b14] hover:opacity-90 transition shadow-lg"
+                          href={`/fixture/${f.id}`}
+                          className={`inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-black transition shadow-lg ${
+                            seatsLeft > 0
+                              ? 'bg-salop-gold text-salop-night hover:opacity-90'
+                              : 'bg-salop-surface border border-salop-border text-salop-gold hover:bg-salop-card'
+                          }`}
                         >
-                          Book Seats
-                          <ArrowRight className="h-4 w-4" />
+                          {seatsLeft > 0 ? 'Book Seats' : 'Join Waitlist'}
+                          <ArrowRight className="h-3.5 w-3.5" />
                         </Link>
                       ) : (
-                        <Link
-                          href={`/fixture/${fixture.id}`}
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-xs font-black text-amber-700 dark:text-[#ffc72c] hover:bg-amber-500/20 transition"
+                        <button
+                          disabled
+                          className="px-4 py-2.5 rounded-xl bg-salop-surface border border-salop-border text-xs font-bold text-slate-500 cursor-not-allowed"
                         >
-                          <UserPlus className="h-3.5 w-3.5" />
-                          Join Waitlist
-                        </Link>
+                          Travel Opening Soon
+                        </button>
                       )}
                     </div>
                   </div>
                 )
-              })}
-            </div>
-          )}
-        </section>
+              })
+            )}
+          </div>
+        </div>
 
       </div>
     </main>
