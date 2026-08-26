@@ -16,11 +16,15 @@ import {
   FileText,
   Loader2,
   Phone,
+  PhoneCall,
   MessageCircle,
   AlertTriangle,
   UserCheck,
+  UserX,
+  UserPlus,
   MapPin,
-  RefreshCw
+  X,
+  Plus
 } from 'lucide-react'
 
 interface Booking {
@@ -51,20 +55,28 @@ export default function StewardManifestPage() {
   const [digitalMode, setDigitalMode] = useState(true)
   const [filterTab, setFilterTab] = useState<'all' | 'missing' | 'boarded'>('all')
 
+  // Modals
+  const [editingPhoneBooking, setEditingPhoneBooking] = useState<Booking | null>(null)
+  const [newPhoneNumber, setNewPhoneNumber] = useState('')
+  const [savingPhone, setSavingPhone] = useState(false)
+
+  const [reassignBooking, setReassignBooking] = useState<Booking | null>(null)
+  const [walkupName, setWalkupName] = useState('')
+  const [walkupPhone, setWalkupPhone] = useState('')
+  const [walkupPrice, setWalkupPrice] = useState(20)
+  const [savingWalkup, setSavingWalkup] = useState(false)
+
   useEffect(() => {
     if (!coachId) return
 
     loadManifest()
 
-    // Real-time synchronization across stewards
     const channel = supabase
       .channel(`coach_bookings_${coachId}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'bookings', filter: `coach_id=eq.${coachId}` },
-        () => {
-          loadManifest()
-        }
+        () => loadManifest()
       )
       .subscribe()
 
@@ -77,7 +89,7 @@ export default function StewardManifestPage() {
     setLoading(true)
 
     try {
-      // 1. Fetch Coach & Fixture
+      // 1. Load Coach & Fixture
       const { data: coachData } = await supabase
         .from('coaches')
         .select('*, fixtures(*)')
@@ -89,7 +101,7 @@ export default function StewardManifestPage() {
         setFixture(coachData.fixtures)
       }
 
-      // 2. Fetch Bookings for this coach
+      // 2. Load Bookings
       const { data: bookingsData, error: bookErr } = await supabase
         .from('bookings')
         .select('*')
@@ -100,7 +112,6 @@ export default function StewardManifestPage() {
       if (bookErr) throw bookErr
 
       if (bookingsData && bookingsData.length > 0) {
-        // Collect user IDs to pull contact phone numbers
         const userIds = Array.from(
           new Set(bookingsData.map((b: any) => b.user_id).filter(Boolean))
         )
@@ -122,7 +133,7 @@ export default function StewardManifestPage() {
 
         const enriched: Booking[] = bookingsData.map((b: any) => ({
           ...b,
-          phone_number: b.user_id ? profileMap[b.user_id]?.phone_number : null,
+          phone_number: b.phone_number || (b.user_id ? profileMap[b.user_id]?.phone_number : null),
           email: b.user_id ? profileMap[b.user_id]?.email : null
         }))
 
@@ -162,22 +173,71 @@ export default function StewardManifestPage() {
       .eq('id', booking.id)
   }
 
+  const handleMarkNoShow = async (booking: Booking) => {
+    if (!confirm(`Mark ${booking.passenger_name} as No-Show?`)) return
+    await supabase.rpc('mark_booking_noshow', { p_booking_id: booking.id })
+    loadManifest()
+  }
+
+  const handleSavePhone = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingPhoneBooking || !newPhoneNumber.trim()) return
+
+    setSavingPhone(true)
+    const phoneVal = newPhoneNumber.trim()
+
+    // Update both bookings and profiles
+    await supabase.from('bookings').update({ phone_number: phoneVal }).eq('id', editingPhoneBooking.id)
+    if (editingPhoneBooking.user_id) {
+      await supabase.from('profiles').update({ phone_number: phoneVal }).eq('id', editingPhoneBooking.user_id)
+    }
+
+    setEditingPhoneBooking(null)
+    setNewPhoneNumber('')
+    setSavingPhone(false)
+    loadManifest()
+  }
+
+  const handleReassignSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!reassignBooking || !walkupName.trim()) return
+
+    setSavingWalkup(true)
+    try {
+      const { error } = await supabase.rpc('reassign_walkup_seat', {
+        p_booking_id: reassignBooking.id,
+        p_new_passenger_name: walkupName.trim(),
+        p_new_phone: walkupPhone.trim() || 'N/A',
+        p_amount: walkupPrice
+      })
+
+      if (error) throw error
+
+      setReassignBooking(null)
+      setWalkupName('')
+      setWalkupPhone('')
+      loadManifest()
+    } catch (err: any) {
+      alert('Failed to reassign seat: ' + err.message)
+    } finally {
+      setSavingWalkup(false)
+    }
+  }
+
+  // Format UK phone for WhatsApp URL (07779289053 -> 447779289053)
   const formatWhatsAppNumber = (phone?: string) => {
     if (!phone) return ''
     let clean = phone.replace(/[^0-9]/g, '')
-    if (clean.startsWith('0')) {
-      clean = '44' + clean.slice(1)
-    }
+    if (clean.startsWith('0')) clean = '44' + clean.slice(1)
     return clean
   }
 
   const getWhatsAppLink = (b: Booking) => {
     if (!b.phone_number) return null
-    const internationalPhone = formatWhatsAppNumber(b.phone_number)
+    const intPhone = formatWhatsAppNumber(b.phone_number)
     const coachNum = coach?.coach_number || 1
     const text = `Hi ${b.passenger_name.split(' ')[0]}, this is the Shrewsbury Town coach steward on Coach ${coachNum} at ${b.pickup_point}. We are preparing to depart shortly, are you nearby?`
-
-    return `https://wa.me/${internationalPhone}?text=${encodeURIComponent(text)}`
+    return `https://wa.me/${intPhone}?text=${encodeURIComponent(text)}`
   }
 
   const filteredBookings = bookings.filter((b) => {
@@ -262,14 +322,13 @@ export default function StewardManifestPage() {
                 }`}
               >
                 <FileText className="h-3.5 w-3.5" />
-                Print / Paper View
+                Print View
               </button>
             </div>
 
             <button
               onClick={() => window.print()}
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-[#1a2742] bg-white dark:bg-[#0e1726] px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-100 dark:hover:bg-[#1a2742] transition shadow-sm"
-              title="Print Manifest"
             >
               <Printer className="h-3.5 w-3.5" />
               Print
@@ -278,7 +337,6 @@ export default function StewardManifestPage() {
             <button
               onClick={exportCSV}
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-[#1a2742] bg-white dark:bg-[#0e1726] px-3.5 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:bg-slate-100 dark:hover:bg-[#1a2742] transition shadow-sm"
-              title="Export CSV"
             >
               <Download className="h-3.5 w-3.5" />
               CSV
@@ -310,29 +368,30 @@ export default function StewardManifestPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2.5">
-              <div className="rounded-xl border border-slate-200 dark:border-[#1a2742] bg-slate-50 dark:bg-[#0e1726] p-3 text-center min-w-[90px] print:border-slate-300">
-                <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 print:text-black block">Boarded</span>
-                <span className="text-lg font-black text-emerald-600 dark:text-emerald-400 print:text-black">
+              <div className="rounded-xl border border-slate-200 dark:border-[#1a2742] bg-slate-50 dark:bg-[#0e1726] p-3 text-center min-w-[90px]">
+                <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 block">Boarded</span>
+                <span className="text-lg font-black text-emerald-600 dark:text-emerald-400">
                   {boardedCount} / {totalBooked}
                 </span>
               </div>
 
-              <div className="rounded-xl border border-slate-200 dark:border-[#1a2742] bg-slate-50 dark:bg-[#0e1726] p-3 text-center min-w-[90px] print:border-slate-300">
-                <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 print:text-black block">Awaiting</span>
+              <div className="rounded-xl border border-slate-200 dark:border-[#1a2742] bg-slate-50 dark:bg-[#0e1726] p-3 text-center min-w-[90px]">
+                <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 block">Awaiting</span>
                 <span className={`text-lg font-black ${missingCount > 0 ? 'text-amber-600 dark:text-[#ffc72c]' : 'text-slate-400'}`}>
                   {missingCount}
                 </span>
               </div>
 
-              <div className="rounded-xl border border-slate-200 dark:border-[#1a2742] bg-slate-50 dark:bg-[#0e1726] p-3 text-center min-w-[90px] print:border-slate-300">
-                <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 print:text-black block">Cash Due</span>
-                <span className="text-lg font-black text-amber-700 dark:text-[#ffc72c] print:text-black">
+              <div className="rounded-xl border border-slate-200 dark:border-[#1a2742] bg-slate-50 dark:bg-[#0e1726] p-3 text-center min-w-[90px]">
+                <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 block">Cash Due</span>
+                <span className="text-lg font-black text-amber-700 dark:text-[#ffc72c]">
                   £{cashDueTotal.toFixed(2)}
                 </span>
               </div>
             </div>
           </div>
 
+          {/* Roll Call Tabs & Search */}
           {digitalMode && (
             <div className="mt-6 pt-4 border-t border-slate-200 dark:border-[#1a2742] space-y-3 print:hidden">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -392,7 +451,7 @@ export default function StewardManifestPage() {
           )}
         </div>
 
-        {/* Digital Mode View */}
+        {/* Digital Mode Card List */}
         {digitalMode ? (
           <div className="space-y-3 print:hidden">
             {filteredBookings.length === 0 ? (
@@ -401,10 +460,10 @@ export default function StewardManifestPage() {
                   <div className="space-y-2">
                     <CheckCircle2 className="h-8 w-8 text-emerald-500 mx-auto" />
                     <p className="font-bold text-slate-900 dark:text-white">All passengers are on board!</p>
-                    <p className="text-xs text-slate-500">Coach is fully accounted for.</p>
+                    <p className="text-xs text-slate-500">Coach is ready for departure.</p>
                   </div>
                 ) : (
-                  'No passengers found for this coach.'
+                  'No passengers found matching search.'
                 )}
               </div>
             ) : (
@@ -420,6 +479,7 @@ export default function StewardManifestPage() {
                         : 'border-slate-200 dark:border-[#1a2742] bg-white dark:bg-[#0a1220] shadow-sm'
                     }`}
                   >
+                    {/* Left: Checkbox & Supporter Details */}
                     <div className="flex items-start sm:items-center gap-3.5">
                       <button
                         type="button"
@@ -449,40 +509,62 @@ export default function StewardManifestPage() {
                             <MapPin className="h-3.5 w-3.5 text-blue-600 dark:text-[#ffc72c]" />
                             {b.pickup_point}
                           </span>
-                          {b.phone_number && (
-                            <span className="font-mono text-slate-700 dark:text-slate-300">
+                          {b.phone_number ? (
+                            <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                              <Phone className="h-3 w-3" />
                               {b.phone_number}
+                            </span>
+                          ) : (
+                            <span className="text-amber-600 dark:text-amber-400 text-[11px] font-medium">
+                              No mobile on file
                             </span>
                           )}
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between sm:justify-end gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800">
-                      {b.phone_number && (
-                        <a
-                          href={`tel:${b.phone_number}`}
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20 transition shadow-sm"
-                          title="Call Supporter"
+                    {/* Right: Actions Bar (Call, WhatsApp, Paid, No-Show) */}
+                    <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800">
+                      {/* Direct Call & WhatsApp Buttons */}
+                      {b.phone_number ? (
+                        <div className="flex items-center gap-1.5">
+                          <a
+                            href={`tel:${b.phone_number}`}
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20 transition shadow-sm"
+                            title={`Call ${b.phone_number}`}
+                          >
+                            <PhoneCall className="h-3.5 w-3.5" />
+                            <span>Call</span>
+                          </a>
+
+                          {whatsAppLink && (
+                            <a
+                              href={whatsAppLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20 transition shadow-sm"
+                              title="Send WhatsApp Roll Call Ping"
+                            >
+                              <MessageCircle className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                              <span>WhatsApp</span>
+                            </a>
+                          )}
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingPhoneBooking(b)
+                            setNewPhoneNumber('')
+                          }}
+                          className="inline-flex items-center gap-1 rounded-xl border border-slate-300 dark:border-[#1a2742] bg-slate-100 dark:bg-[#0e1726] px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:text-white transition shadow-sm"
                         >
-                          <Phone className="h-3.5 w-3.5" />
-                          <span className="hidden sm:inline">Call</span>
-                        </a>
+                          <Plus className="h-3.5 w-3.5 text-blue-600 dark:text-[#ffc72c]" />
+                          Add Phone
+                        </button>
                       )}
 
-                      {whatsAppLink && (
-                        <a
-                          href={whatsAppLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20 transition shadow-sm"
-                          title="WhatsApp Roll Call Ping"
-                        >
-                          <MessageCircle className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                          <span className="hidden sm:inline">WhatsApp</span>
-                        </a>
-                      )}
-
+                      {/* Payment Badge or Cash Collect */}
                       {b.payment_method === 'pay_on_coach' && b.payment_status !== 'paid' ? (
                         <button
                           type="button"
@@ -493,9 +575,36 @@ export default function StewardManifestPage() {
                           Collect £{Number(b.amount_paid).toFixed(2)}
                         </button>
                       ) : (
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
+                        <span className="inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
                           ✓ Paid (£{Number(b.amount_paid).toFixed(2)})
                         </span>
+                      )}
+
+                      {/* No-Show / Reassign (Missing only) */}
+                      {!b.is_boarded && (
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setReassignBooking(b)
+                              setWalkupPrice(Number(b.amount_paid) || 20)
+                            }}
+                            className="inline-flex items-center gap-1 rounded-xl border border-blue-500/40 bg-blue-500/10 px-2.5 py-2 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 transition"
+                            title="Reassign seat to walk-up fan"
+                          >
+                            <UserPlus className="h-3.5 w-3.5" />
+                            <span className="hidden md:inline">Walk-Up</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleMarkNoShow(b)}
+                            className="inline-flex items-center p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition"
+                            title="Mark as No-Show"
+                          >
+                            <UserX className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -504,7 +613,7 @@ export default function StewardManifestPage() {
             )}
           </div>
         ) : (
-          /* Paper / Print View */
+          /* Paper / Print View Table */
           <div className="rounded-2xl border border-slate-200 dark:border-[#1a2742] bg-white dark:bg-[#0a1220] overflow-hidden shadow-lg print:border-black print:bg-white">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
@@ -546,6 +655,123 @@ export default function StewardManifestPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Add Phone Modal */}
+        {editingPhoneBooking && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <div className="w-full max-w-sm rounded-2xl border border-slate-200 dark:border-[#1a2742] bg-white dark:bg-[#0a1220] p-6 shadow-2xl space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-[#1a2742] pb-3">
+                <h3 className="font-bold text-slate-900 dark:text-white">Add Contact Number</h3>
+                <button onClick={() => setEditingPhoneBooking(null)} className="text-slate-400 hover:text-white">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSavePhone} className="space-y-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Mobile for {editingPhoneBooking.passenger_name}
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    placeholder="07123 456789"
+                    value={newPhoneNumber}
+                    onChange={(e) => setNewPhoneNumber(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 dark:border-[#1a2742] bg-slate-50 dark:bg-[#070b14] px-3.5 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-[#ffc72c]"
+                  />
+                </div>
+
+                <div className="pt-2 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingPhoneBooking(null)}
+                    className="rounded-xl px-3 py-1.5 text-xs text-slate-500"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingPhone}
+                    className="rounded-xl bg-[#0057b8] dark:bg-[#ffc72c] px-4 py-1.5 text-xs font-bold text-white dark:text-[#070b14]"
+                  >
+                    {savingPhone ? 'Saving...' : 'Save Phone'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Walk-up Reassign Modal */}
+        {reassignBooking && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <div className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-[#1a2742] bg-white dark:bg-[#0a1220] p-6 shadow-2xl space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-[#1a2742] pb-3">
+                <div>
+                  <span className="text-xs font-bold uppercase text-blue-600 dark:text-[#ffc72c]">Matchday Seat Reassignment</span>
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white">Reassign {reassignBooking.passenger_name}&apos;s Seat</h3>
+                </div>
+                <button onClick={() => setReassignBooking(null)} className="text-slate-400 hover:text-white">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleReassignSubmit} className="space-y-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Walk-Up Supporter Full Name *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. John Davies"
+                    value={walkupName}
+                    onChange={(e) => setWalkupName(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 dark:border-[#1a2742] bg-slate-50 dark:bg-[#070b14] px-3.5 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-[#ffc72c]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Mobile Phone Number</label>
+                  <input
+                    type="tel"
+                    placeholder="07..."
+                    value={walkupPhone}
+                    onChange={(e) => setWalkupPhone(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 dark:border-[#1a2742] bg-slate-50 dark:bg-[#070b14] px-3.5 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-[#ffc72c]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Cash Collected (£)</label>
+                  <input
+                    type="number"
+                    required
+                    value={walkupPrice}
+                    onChange={(e) => setWalkupPrice(Number(e.target.value))}
+                    className="w-full rounded-xl border border-slate-200 dark:border-[#1a2742] bg-slate-50 dark:bg-[#070b14] px-3.5 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-[#ffc72c]"
+                  />
+                </div>
+
+                <div className="pt-2 border-t border-slate-200 dark:border-[#1a2742] flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setReassignBooking(null)}
+                    className="rounded-xl border border-slate-200 dark:border-[#1a2742] bg-slate-100 dark:bg-[#0e1726] px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingWalkup}
+                    className="rounded-xl bg-[#0057b8] dark:bg-[#ffc72c] px-5 py-2 text-xs font-black text-white dark:text-[#070b14] hover:opacity-90 transition shadow-lg"
+                  >
+                    {savingWalkup ? 'Reassigning...' : 'Assign Seat & Mark Boarded'}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
 
