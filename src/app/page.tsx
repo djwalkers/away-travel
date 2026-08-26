@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import ThemeToggle from '@/components/ThemeToggle'
 import SignOutButton from '@/components/SignOutButton'
+import ClubBadge from '@/components/ClubBadge'
 import {
   Calendar,
   Clock,
@@ -27,6 +28,7 @@ export default function HomePage() {
   const [fixtures, setFixtures] = useState<any[]>([])
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
+  const [imgError, setImgError] = useState(false)
 
   useEffect(() => {
     loadHomeData()
@@ -93,19 +95,18 @@ export default function HomePage() {
         {/* Navigation Header */}
         <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-salop-border pb-6">
           <div className="flex items-center gap-3.5">
-            {/* Shrewsbury Town FC Crest */}
-            <div className="h-12 w-12 rounded-2xl bg-salop-gold/10 border border-salop-gold/30 flex items-center justify-center p-1.5 shadow-inner shrink-0 overflow-hidden">
-              <img
-                src="/badge.png"
-                alt="Shrewsbury Town FC"
-                className="h-full w-full object-contain"
-                onError={(e) => {
-                  const target = e.currentTarget
-                  if (target.src.endsWith('/badge.png')) target.src = '/crest.png'
-                  else if (target.src.endsWith('/crest.png')) target.src = '/logo.png'
-                  else if (target.src.endsWith('/logo.png')) target.src = '/stfc.png'
-                }}
-              />
+            {/* Shrewsbury Town Crest from public/crest.webp */}
+            <div className="h-12 w-12 flex items-center justify-center shrink-0 drop-shadow-md overflow-hidden">
+              {!imgError ? (
+                <img
+                  src="/crest.webp"
+                  alt="Shrewsbury Town FC Crest"
+                  className="h-full w-full object-contain"
+                  onError={() => setImgError(true)}
+                />
+              ) : (
+                <ClubBadge className="h-12 w-12" />
+              )}
             </div>
             <div>
               <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
@@ -167,7 +168,7 @@ export default function HomePage() {
           </div>
         </header>
 
-        {/* Membership Promo Card */}
+        {/* Membership Promo Card if not yet a member */}
         {!isMember && (
           <div className="rounded-2xl border border-salop-gold/40 bg-gradient-to-r from-salop-card to-salop-surface p-5 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
