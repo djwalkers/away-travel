@@ -1,42 +1,22 @@
 @import "tailwindcss";
 
+/* Enable class-based dark mode for next-themes in Tailwind v4 */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @layer base {
   :root {
-    --color-bg-base: #f8fafc;
-    --color-bg-surface: #ffffff;
-    --color-bg-card: #ffffff;
-    --color-border-main: #e2e8f0;
-    --color-text-primary: #0f172a;
-    --color-text-secondary: #64748b;
-    --color-salop-blue: #0057b8;
-    --color-salop-amber: #d97706;
+    --background: #f8fafc;
+    --foreground: #0f172a;
   }
 
   .dark {
-    --color-bg-base: #070b14;
-    --color-bg-surface: #0e1726;
-    --color-bg-card: #0a1220;
-    --color-border-main: #1a2742;
-    --color-text-primary: #f8fafc;
-    --color-text-secondary: #94a3b8;
-    --color-salop-blue: #0057b8;
-    --color-salop-amber: #ffc72c;
+    --background: #070b14;
+    --foreground: #f8fafc;
   }
-}
-
-@theme {
-  --color-salop-night: var(--color-bg-base);
-  --color-salop-surface: var(--color-bg-surface);
-  --color-salop-card: var(--color-bg-card);
-  --color-salop-border: var(--color-border-main);
-  --color-salop-blue: var(--color-salop-blue);
-  --color-salop-amber: var(--color-salop-amber);
 }
 
 html,
 body {
-  background-color: var(--color-bg-base);
-  color: var(--color-text-primary);
   min-height: 100vh;
   transition: background-color 0.2s ease, color 0.2s ease;
 }
@@ -44,12 +24,12 @@ body {
 /* Custom Styling for Leaflet Map Popups */
 .leaflet-popup-content-wrapper,
 .leaflet-popup-tip {
-  background-color: var(--color-bg-card) !important;
-  color: var(--color-text-primary) !important;
-  border: 1px solid var(--color-border-main);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2) !important;
+  background-color: #0a1220 !important;
+  color: #f8fafc !important;
+  border: 1px solid #1a2742;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4) !important;
 }
 
 .leaflet-container {
-  background-color: var(--color-bg-base) !important;
+  background-color: #070b14 !important;
 }
