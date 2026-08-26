@@ -23,7 +23,8 @@ import {
   ChevronUp,
   UserPlus,
   Phone,
-  Mail
+  Mail,
+  PieChart
 } from 'lucide-react'
 
 const MASTER_PICKUP_STOPS = [
@@ -94,7 +95,8 @@ export default function AdminFixturesPage() {
         ),
         waiting_list (
           id,
-          seats_requested
+          seats_requested,
+          status
         )
       `)
       .order('match_date', { ascending: true })
@@ -219,7 +221,6 @@ export default function AdminFixturesPage() {
     }
   }
 
-  // Add Additional Coach (Coach 2, 3...)
   const handleAddNewCoach = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!addingCoachFixture) return
@@ -242,7 +243,6 @@ export default function AdminFixturesPage() {
     }
   }
 
-  // Load Waiting List for a Fixture
   const openWaitingList = async (fixture: any) => {
     setViewingWaitingListFixture(fixture)
     setLoadingWaitlist(true)
@@ -250,6 +250,7 @@ export default function AdminFixturesPage() {
       .from('waiting_list')
       .select('*')
       .eq('fixture_id', fixture.id)
+      .eq('status', 'waiting')
       .order('created_at', { ascending: true })
 
     setWaitingList(data || [])
@@ -257,87 +258,95 @@ export default function AdminFixturesPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#070b14] text-slate-100 p-6 md:p-12">
+    <main className="min-h-screen bg-slate-50 dark:bg-[#070b14] text-slate-900 dark:text-slate-100 p-6 md:p-12 transition-colors">
       <div className="max-w-6xl mx-auto space-y-8">
         
         {/* Top Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#1a2742] pb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-[#1a2742] pb-6">
           <div>
             <div className="flex items-center gap-2">
-              <Link href="/" className="text-xs text-slate-400 hover:text-white transition">
+              <Link href="/" className="text-xs text-slate-500 dark:text-slate-400 hover:text-white transition">
                 ← Main Site
               </Link>
             </div>
-            <h1 className="text-3xl font-black text-white mt-1 flex items-center gap-2.5">
-              <ShieldCheck className="h-7 w-7 text-[#ffc72c]" />
+            <h1 className="text-3xl font-black text-slate-900 dark:text-white mt-1 flex items-center gap-2.5">
+              <ShieldCheck className="h-7 w-7 text-blue-600 dark:text-[#ffc72c]" />
               Matchday Travel Operations
             </h1>
-            <p className="text-slate-400 text-xs mt-0.5">
-              Manage coach manifests, add extra coaches, monitor waiting lists, and auto-sync fixtures.
+            <p className="text-slate-600 dark:text-slate-400 text-xs mt-0.5">
+              Manage coach manifests, add extra coaches, and release away coach bookings.
             </p>
           </div>
 
-          <button
-            onClick={handleTriggerSync}
-            disabled={syncing}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#0e1726] border border-[#1a2742] px-4 py-2.5 text-xs font-bold text-[#ffc72c] hover:bg-[#1a2742] transition shadow-lg disabled:opacity-50"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${syncing ? 'animate-spin' : ''}`} />
-            {syncing ? 'Syncing Fixtures...' : 'Auto-Sync League Fixtures'}
-          </button>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Link
+              href="/admin/committee"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 dark:bg-[#ffc72c] px-4 py-2.5 text-xs font-black text-white dark:text-[#070b14] hover:opacity-90 transition shadow-lg"
+            >
+              <PieChart className="h-3.5 w-3.5" />
+              Committee Hub & P&L
+            </Link>
+
+            <button
+              onClick={handleTriggerSync}
+              disabled={syncing}
+              className="inline-flex items-center gap-2 rounded-xl bg-white dark:bg-[#0e1726] border border-slate-200 dark:border-[#1a2742] px-4 py-2.5 text-xs font-bold text-blue-600 dark:text-[#ffc72c] hover:bg-slate-100 dark:hover:bg-[#1a2742] transition shadow-sm disabled:opacity-50"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${syncing ? 'animate-spin' : ''}`} />
+              {syncing ? 'Syncing Fixtures...' : 'Auto-Sync Fixtures'}
+            </button>
+          </div>
         </div>
 
         {syncStatus && (
-          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3.5 text-xs text-emerald-300 flex items-center gap-2">
+          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3.5 text-xs text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4 shrink-0" />
             <span>{syncStatus}</span>
           </div>
         )}
 
-        {/* Fixtures List */}
-        <div className="rounded-2xl border border-[#1a2742] bg-[#0a1220] overflow-hidden shadow-2xl">
-          <div className="p-4 border-b border-[#1a2742] flex items-center justify-between">
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-[#ffc72c]" />
+        {/* Fixtures Schedule */}
+        <div className="rounded-2xl border border-slate-200 dark:border-[#1a2742] bg-white dark:bg-[#0a1220] overflow-hidden shadow-2xl">
+          <div className="p-4 border-b border-slate-200 dark:border-[#1a2742] flex items-center justify-between">
+            <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-blue-600 dark:text-[#ffc72c]" />
               Season Away Schedule
             </h2>
-            <span className="text-xs text-slate-400">{fixtures.length} fixtures in database</span>
+            <span className="text-xs text-slate-500">{fixtures.length} fixtures in calendar</span>
           </div>
 
-          <div className="divide-y divide-[#1a2742]">
+          <div className="divide-y divide-slate-200 dark:divide-[#1a2742]">
             {fixtures.length === 0 ? (
               <div className="p-12 text-center text-slate-500 text-sm">
-                No fixtures found. Click &quot;Auto-Sync League Fixtures&quot; above to import!
+                No fixtures found. Click &quot;Auto-Sync Fixtures&quot; above to import!
               </div>
             ) : (
               fixtures.map((f) => {
                 const activeCoaches = (f.coaches || []).filter((c: any) => c.is_active)
-                const totalCapacity = activeCoaches.reduce((sum: number, c: any) => sum + c.seat_capacity, 0)
                 const totalBooked = activeCoaches.reduce(
                   (sum: number, c: any) =>
                     sum + (c.bookings?.filter((b: any) => b.payment_status !== 'cancelled').length || 0),
                   0
                 )
-                const waitlistTotalSeats = (f.waiting_list || []).reduce(
-                  (sum: number, w: any) => sum + (w.seats_requested || 1),
-                  0
-                )
+                const waitlistTotalSeats = (f.waiting_list || [])
+                  .filter((w: any) => w.status === 'waiting')
+                  .reduce((sum: number, w: any) => sum + (w.seats_requested || 1), 0)
 
                 return (
-                  <div key={f.id} className="p-5 flex flex-col gap-4 hover:bg-[#0e1726]/30 transition">
+                  <div key={f.id} className="p-5 flex flex-col gap-4 hover:bg-slate-50 dark:hover:bg-[#0e1726]/30 transition">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="text-lg font-black text-white">{f.opponent}</span>
+                          <span className="text-lg font-black text-slate-900 dark:text-white">{f.opponent}</span>
                           <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
                             f.is_released
-                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                              : 'bg-amber-500/10 text-[#ffc72c] border border-[#ffc72c]/30'
+                              ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20'
+                              : 'bg-amber-500/10 text-amber-700 dark:text-[#ffc72c] border border-amber-500/30'
                           }`}>
                             {f.is_released ? '✓ Travel Released' : 'Draft / Unreleased'}
                           </span>
                         </div>
-                        <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400 mt-1">
+                        <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 dark:text-slate-400 mt-1">
                           <span>{f.venue}</span>
                           <span>•</span>
                           <span>
@@ -357,30 +366,27 @@ export default function AdminFixturesPage() {
                       <div className="flex flex-wrap items-center gap-2.5">
                         {f.is_released ? (
                           <>
-                            {/* Waiting List Badge / Button */}
                             {waitlistTotalSeats > 0 && (
                               <button
                                 onClick={() => openWaitingList(f)}
-                                className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs font-bold text-[#ffc72c] hover:bg-amber-500/20 transition"
+                                className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-700 dark:text-[#ffc72c] hover:bg-amber-500/20 transition"
                               >
                                 <UserPlus className="h-3.5 w-3.5" />
                                 Waitlist ({waitlistTotalSeats})
                               </button>
                             )}
 
-                            {/* Add Additional Coach Button */}
                             <button
                               onClick={() => setAddingCoachFixture(f)}
-                              className="inline-flex items-center gap-1.5 rounded-xl border border-[#1a2742] bg-[#0e1726] px-3 py-2 text-xs font-bold text-white hover:bg-[#1a2742] transition"
+                              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-[#1a2742] bg-white dark:bg-[#0e1726] px-3 py-2 text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-100 dark:hover:bg-[#1a2742] transition shadow-sm"
                             >
-                              <Plus className="h-3.5 w-3.5 text-[#ffc72c]" />
+                              <Plus className="h-3.5 w-3.5 text-blue-600 dark:text-[#ffc72c]" />
                               Add Coach
                             </button>
 
-                            {/* Stops Management Button */}
                             <Link
                               href={`/admin/fixtures/${f.id}/pickups`}
-                              className="inline-flex items-center gap-1.5 rounded-xl border border-[#1a2742] bg-[#0e1726] px-3 py-2 text-xs font-bold text-[#ffc72c] hover:bg-[#1a2742] transition"
+                              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-[#1a2742] bg-white dark:bg-[#0e1726] px-3 py-2 text-xs font-bold text-blue-600 dark:text-[#ffc72c] hover:bg-slate-100 dark:hover:bg-[#1a2742] transition shadow-sm"
                             >
                               <Navigation className="h-3.5 w-3.5" />
                               Stops
@@ -389,7 +395,7 @@ export default function AdminFixturesPage() {
                         ) : (
                           <button
                             onClick={() => openReleaseModal(f)}
-                            className="inline-flex items-center gap-1.5 rounded-xl bg-[#ffc72c] px-4 py-2 text-xs font-black text-[#070b14] hover:bg-[#e6b022] transition shadow-lg"
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 dark:bg-[#ffc72c] px-4 py-2 text-xs font-black text-white dark:text-[#070b14] hover:opacity-90 transition shadow-lg"
                           >
                             <Send className="h-3.5 w-3.5" />
                             Release Coach Travel
@@ -398,25 +404,23 @@ export default function AdminFixturesPage() {
                       </div>
                     </div>
 
-                    {/* Multi-Coach Fleet Overview for Released Matches */}
+                    {/* Multi-Coach Fleet Overview */}
                     {f.is_released && activeCoaches.length > 0 && (
-                      <div className="pt-3 border-t border-[#1a2742]/60 grid sm:grid-cols-2 md:grid-cols-3 gap-3">
+                      <div className="pt-3 border-t border-slate-100 dark:border-[#1a2742]/60 grid sm:grid-cols-2 md:grid-cols-3 gap-3">
                         {activeCoaches.map((c: any) => {
-                          const coachBooked = (c.bookings || []).filter(
-                            (b: any) => b.payment_status !== 'cancelled'
-                          ).length
+                          const coachBooked = (c.bookings || []).filter((b: any) => b.payment_status !== 'cancelled').length
                           const coachLeft = Math.max(0, c.seat_capacity - coachBooked)
 
                           return (
-                            <div key={c.id} className="rounded-xl border border-[#1a2742] bg-[#070b14] p-3 flex items-center justify-between">
+                            <div key={c.id} className="rounded-xl border border-slate-200 dark:border-[#1a2742] bg-slate-50 dark:bg-[#070b14] p-3 flex items-center justify-between">
                               <div>
-                                <div className="flex items-center gap-1.5 font-bold text-xs text-white">
-                                  <Bus className="h-3.5 w-3.5 text-[#ffc72c]" />
+                                <div className="flex items-center gap-1.5 font-bold text-xs text-slate-900 dark:text-white">
+                                  <Bus className="h-3.5 w-3.5 text-blue-600 dark:text-[#ffc72c]" />
                                   Coach {c.coach_number}
                                 </div>
-                                <div className="text-[11px] text-slate-400 mt-0.5">
+                                <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                                   {coachBooked} / {c.seat_capacity} Booked •{' '}
-                                  <strong className={coachLeft === 0 ? 'text-rose-400' : 'text-emerald-400'}>
+                                  <strong className={coachLeft === 0 ? 'text-rose-500' : 'text-emerald-600 dark:text-emerald-400'}>
                                     {coachLeft === 0 ? 'FULL' : `${coachLeft} left`}
                                   </strong>
                                 </div>
@@ -424,9 +428,9 @@ export default function AdminFixturesPage() {
 
                               <Link
                                 href={`/admin/manifest/${c.id}`}
-                                className="inline-flex items-center gap-1 rounded-lg bg-[#0e1726] border border-[#1a2742] px-2.5 py-1 text-[11px] font-bold text-white hover:bg-[#1a2742] transition"
+                                className="inline-flex items-center gap-1 rounded-lg bg-white dark:bg-[#0e1726] border border-slate-200 dark:border-[#1a2742] px-2.5 py-1 text-[11px] font-bold text-slate-800 dark:text-white hover:bg-slate-100 dark:hover:bg-[#1a2742] transition shadow-sm"
                               >
-                                <FileSpreadsheet className="h-3 w-3 text-emerald-400" />
+                                <FileSpreadsheet className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
                                 Manifest
                               </Link>
                             </div>
@@ -444,14 +448,14 @@ export default function AdminFixturesPage() {
         {/* Release Modal */}
         {selectedFixture && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
-            <div className="w-full max-w-2xl my-8 rounded-2xl border border-[#1a2742] bg-[#0a1220] p-6 shadow-2xl space-y-6">
-              <div className="flex items-center justify-between border-b border-[#1a2742] pb-4">
+            <div className="w-full max-w-2xl my-8 rounded-2xl border border-slate-200 dark:border-[#1a2742] bg-white dark:bg-[#0a1220] p-6 shadow-2xl space-y-6">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#1a2742] pb-4">
                 <div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#ffc72c]">Configure & Release Travel</span>
-                  <h3 className="text-2xl font-black text-white mt-0.5">
+                  <span className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-[#ffc72c]">Configure & Release Travel</span>
+                  <h3 className="text-2xl font-black text-slate-900 dark:text-white mt-0.5">
                     vs {selectedFixture.opponent}
                   </h3>
-                  <p className="text-xs text-slate-400">{selectedFixture.venue}</p>
+                  <p className="text-xs text-slate-500">{selectedFixture.venue}</p>
                 </div>
                 <button
                   onClick={() => setSelectedFixture(null)}
@@ -462,10 +466,10 @@ export default function AdminFixturesPage() {
               </div>
 
               <form onSubmit={handleConfirmRelease} className="space-y-6">
-                <div className="grid grid-cols-2 gap-4 rounded-xl border border-[#1a2742] bg-[#0e1726] p-4">
+                <div className="grid grid-cols-2 gap-4 rounded-xl border border-slate-200 dark:border-[#1a2742] bg-slate-50 dark:bg-[#0e1726] p-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1.5 flex items-center gap-1.5">
-                      <Clock className="h-3.5 w-3.5 text-[#ffc72c]" />
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
+                      <Clock className="h-3.5 w-3.5 text-blue-600 dark:text-[#ffc72c]" />
                       HQ Departure Time
                     </label>
                     <input
@@ -473,13 +477,13 @@ export default function AdminFixturesPage() {
                       required
                       value={departureTime}
                       onChange={(e) => handleDepartureChange(e.target.value)}
-                      className="w-full rounded-xl border border-[#1a2742] bg-[#070b14] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#ffc72c]"
+                      className="w-full rounded-xl border border-slate-200 dark:border-[#1a2742] bg-white dark:bg-[#070b14] px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-[#ffc72c]"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1.5 flex items-center gap-1.5">
-                      <Bus className="h-3.5 w-3.5 text-[#ffc72c]" />
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
+                      <Bus className="h-3.5 w-3.5 text-blue-600 dark:text-[#ffc72c]" />
                       Coach 1 Capacity
                     </label>
                     <input
@@ -489,20 +493,20 @@ export default function AdminFixturesPage() {
                       max={80}
                       value={coachCapacity}
                       onChange={(e) => setCoachCapacity(Number(e.target.value))}
-                      className="w-full rounded-xl border border-[#1a2742] bg-[#070b14] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#ffc72c]"
+                      className="w-full rounded-xl border border-slate-200 dark:border-[#1a2742] bg-white dark:bg-[#070b14] px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-[#ffc72c]"
                     />
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-[#1a2742] bg-[#0e1726] p-4 space-y-3">
-                  <label className="text-xs font-bold text-white flex items-center gap-1.5 uppercase tracking-wider">
-                    <Banknote className="h-3.5 w-3.5 text-[#ffc72c]" />
+                <div className="rounded-xl border border-slate-200 dark:border-[#1a2742] bg-slate-50 dark:bg-[#0e1726] p-4 space-y-3">
+                  <label className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5 uppercase tracking-wider">
+                    <Banknote className="h-3.5 w-3.5 text-blue-600 dark:text-[#ffc72c]" />
                     Pricing Tiers (Standard vs Member)
                   </label>
 
                   <div className="space-y-2.5">
                     {pricingTiers.map((tier, idx) => (
-                      <div key={idx} className="flex items-center gap-3 rounded-lg border border-[#1a2742] bg-[#070b14] p-2.5">
+                      <div key={idx} className="flex items-center gap-3 rounded-lg border border-slate-200 dark:border-[#1a2742] bg-white dark:bg-[#070b14] p-2.5">
                         <input
                           type="checkbox"
                           checked={tier.enabled}
@@ -511,13 +515,13 @@ export default function AdminFixturesPage() {
                             updated[idx].enabled = e.target.checked
                             setPricingTiers(updated)
                           }}
-                          className="h-4 w-4 rounded border-slate-700 text-[#ffc72c] focus:ring-0 cursor-pointer"
+                          className="h-4 w-4 rounded border-slate-400 text-blue-600 dark:text-[#ffc72c] focus:ring-0 cursor-pointer"
                         />
-                        <span className="text-xs font-bold text-white flex-1 min-w-[130px]">{tier.tier_name}</span>
+                        <span className="text-xs font-bold text-slate-900 dark:text-white flex-1 min-w-[130px]">{tier.tier_name}</span>
 
                         <div className="flex items-center gap-2">
                           <div className="flex items-center gap-1">
-                            <span className="text-[10px] text-slate-400">Std £</span>
+                            <span className="text-[10px] text-slate-500">Std £</span>
                             <input
                               type="number"
                               disabled={!tier.enabled}
@@ -527,12 +531,12 @@ export default function AdminFixturesPage() {
                                 updated[idx].standard_price = Number(e.target.value)
                                 setPricingTiers(updated)
                               }}
-                              className="w-16 rounded-md border border-[#1a2742] bg-[#0a1220] px-2 py-1 text-xs text-white disabled:opacity-40"
+                              className="w-16 rounded-md border border-slate-200 dark:border-[#1a2742] bg-slate-50 dark:bg-[#0a1220] px-2 py-1 text-xs text-slate-900 dark:text-white disabled:opacity-40"
                             />
                           </div>
 
                           <div className="flex items-center gap-1">
-                            <span className="text-[10px] text-[#ffc72c]">Mem £</span>
+                            <span className="text-[10px] text-blue-600 dark:text-[#ffc72c]">Mem £</span>
                             <input
                               type="number"
                               disabled={!tier.enabled}
@@ -542,7 +546,7 @@ export default function AdminFixturesPage() {
                                 updated[idx].member_price = Number(e.target.value)
                                 setPricingTiers(updated)
                               }}
-                              className="w-16 rounded-md border border-[#1a2742] bg-[#0a1220] px-2 py-1 text-xs text-white disabled:opacity-40 font-bold"
+                              className="w-16 rounded-md border border-slate-200 dark:border-[#1a2742] bg-slate-50 dark:bg-[#0a1220] px-2 py-1 text-xs text-slate-900 dark:text-white disabled:opacity-40 font-bold"
                             />
                           </div>
                         </div>
@@ -551,13 +555,13 @@ export default function AdminFixturesPage() {
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-[#1a2742] bg-[#0e1726] p-4 space-y-3">
+                <div className="rounded-xl border border-slate-200 dark:border-[#1a2742] bg-slate-50 dark:bg-[#0e1726] p-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-white flex items-center gap-1.5 uppercase tracking-wider">
-                      <MapPin className="h-3.5 w-3.5 text-[#ffc72c]" />
+                    <label className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5 uppercase tracking-wider">
+                      <MapPin className="h-3.5 w-3.5 text-blue-600 dark:text-[#ffc72c]" />
                       Select Available Pickup Stops for this Trip
                     </label>
-                    <span className="text-[11px] text-slate-400">
+                    <span className="text-[11px] text-slate-500">
                       {pickupOptions.filter((p) => p.checked).length} selected
                     </span>
                   </div>
@@ -568,8 +572,8 @@ export default function AdminFixturesPage() {
                         key={stop.id}
                         className={`flex items-center justify-between p-2.5 rounded-lg border transition ${
                           stop.checked
-                            ? 'border-[#ffc72c]/40 bg-[#ffc72c]/5'
-                            : 'border-[#1a2742] bg-[#070b14] opacity-60'
+                            ? 'border-blue-500/40 dark:border-[#ffc72c]/40 bg-blue-500/5 dark:bg-[#ffc72c]/5'
+                            : 'border-slate-200 dark:border-[#1a2742] bg-white dark:bg-[#070b14] opacity-60'
                         }`}
                       >
                         <label className="flex items-center gap-2.5 cursor-pointer flex-1">
@@ -581,16 +585,16 @@ export default function AdminFixturesPage() {
                               updated[idx].checked = e.target.checked
                               setPickupOptions(updated)
                             }}
-                            className="h-4 w-4 rounded border-slate-700 text-[#ffc72c] focus:ring-0 cursor-pointer"
+                            className="h-4 w-4 rounded border-slate-400 text-blue-600 dark:text-[#ffc72c] focus:ring-0 cursor-pointer"
                           />
-                          <span className={`text-xs ${stop.checked ? 'font-bold text-white' : 'text-slate-400'}`}>
+                          <span className={`text-xs ${stop.checked ? 'font-bold text-slate-900 dark:text-white' : 'text-slate-400'}`}>
                             {stop.name}
                           </span>
                         </label>
 
                         {stop.checked && (
                           <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] text-slate-400">Departs:</span>
+                            <span className="text-[10px] text-slate-500">Departs:</span>
                             <input
                               type="time"
                               value={stop.time}
@@ -599,7 +603,7 @@ export default function AdminFixturesPage() {
                                 updated[idx].time = e.target.value
                                 setPickupOptions(updated)
                               }}
-                              className="rounded border border-[#1a2742] bg-[#0a1220] px-1.5 py-0.5 text-xs text-[#ffc72c] font-bold"
+                              className="rounded border border-slate-200 dark:border-[#1a2742] bg-white dark:bg-[#0a1220] px-1.5 py-0.5 text-xs text-blue-600 dark:text-[#ffc72c] font-bold"
                             />
                           </div>
                         )}
@@ -613,12 +617,12 @@ export default function AdminFixturesPage() {
                       placeholder="Add another pickup stop..."
                       value={customStopName}
                       onChange={(e) => setCustomStopName(e.target.value)}
-                      className="flex-1 rounded-lg border border-[#1a2742] bg-[#070b14] px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#ffc72c]"
+                      className="flex-1 rounded-lg border border-slate-200 dark:border-[#1a2742] bg-white dark:bg-[#070b14] px-3 py-1.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 dark:focus:border-[#ffc72c]"
                     />
                     <button
                       type="button"
                       onClick={handleAddCustomStop}
-                      className="inline-flex items-center gap-1 rounded-lg bg-[#0a1220] border border-[#1a2742] px-3 py-1.5 text-xs font-bold text-[#ffc72c] hover:bg-[#1a2742] transition"
+                      className="inline-flex items-center gap-1 rounded-lg bg-slate-100 dark:bg-[#0a1220] border border-slate-200 dark:border-[#1a2742] px-3 py-1.5 text-xs font-bold text-blue-600 dark:text-[#ffc72c] hover:bg-slate-200 transition"
                     >
                       <Plus className="h-3.5 w-3.5" />
                       Add Stop
@@ -626,18 +630,18 @@ export default function AdminFixturesPage() {
                   </div>
                 </div>
 
-                <div className="pt-2 border-t border-[#1a2742] flex justify-end gap-3">
+                <div className="pt-2 border-t border-slate-100 dark:border-[#1a2742] flex justify-end gap-3">
                   <button
                     type="button"
                     onClick={() => setSelectedFixture(null)}
-                    className="rounded-xl border border-[#1a2742] bg-[#0e1726] px-4 py-2.5 text-xs font-semibold text-slate-300 hover:text-white"
+                    className="rounded-xl border border-slate-200 dark:border-[#1a2742] px-4 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-300"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={releasing}
-                    className="rounded-xl bg-[#ffc72c] px-6 py-2.5 text-xs font-black text-[#070b14] hover:bg-[#e6b022] transition shadow-lg disabled:opacity-50"
+                    className="rounded-xl bg-blue-600 dark:bg-[#ffc72c] px-6 py-2.5 text-xs font-black text-white dark:text-[#070b14] hover:opacity-90 transition shadow-lg disabled:opacity-50"
                   >
                     {releasing ? 'Publishing Fixture...' : 'Publish to Supporters'}
                   </button>
@@ -650,11 +654,11 @@ export default function AdminFixturesPage() {
         {/* Add Additional Coach Modal */}
         {addingCoachFixture && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <div className="w-full max-w-md rounded-2xl border border-[#1a2742] bg-[#0a1220] p-6 shadow-2xl space-y-4">
-              <div className="flex items-center justify-between border-b border-[#1a2742] pb-3">
+            <div className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-[#1a2742] bg-white dark:bg-[#0a1220] p-6 shadow-2xl space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#1a2742] pb-3">
                 <div>
-                  <span className="text-xs font-bold uppercase text-[#ffc72c]">Fleet Expansion</span>
-                  <h3 className="text-lg font-black text-white">Add Extra Coach (vs {addingCoachFixture.opponent})</h3>
+                  <span className="text-xs font-bold uppercase text-blue-600 dark:text-[#ffc72c]">Fleet Expansion</span>
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white">Add Extra Coach (vs {addingCoachFixture.opponent})</h3>
                 </div>
                 <button
                   onClick={() => setAddingCoachFixture(null)}
@@ -666,7 +670,7 @@ export default function AdminFixturesPage() {
 
               <form onSubmit={handleAddNewCoach} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                     Coach Seat Capacity (e.g. 53-seater)
                   </label>
                   <input
@@ -676,109 +680,27 @@ export default function AdminFixturesPage() {
                     max={85}
                     value={newCoachCapacity}
                     onChange={(e) => setNewCoachCapacity(Number(e.target.value))}
-                    className="w-full rounded-xl border border-[#1a2742] bg-[#070b14] px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#ffc72c]"
+                    className="w-full rounded-xl border border-slate-200 dark:border-[#1a2742] bg-white dark:bg-[#070b14] px-3.5 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-[#ffc72c]"
                   />
                 </div>
 
-                <div className="pt-2 border-t border-[#1a2742] flex justify-end gap-2">
+                <div className="pt-2 border-t border-slate-100 dark:border-[#1a2742] flex justify-end gap-2">
                   <button
                     type="button"
                     onClick={() => setAddingCoachFixture(null)}
-                    className="rounded-xl border border-[#1a2742] bg-[#0e1726] px-4 py-2 text-xs font-semibold text-slate-300 hover:text-white"
+                    className="rounded-xl border border-slate-200 dark:border-[#1a2742] px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={addingCoach}
-                    className="rounded-xl bg-[#ffc72c] px-5 py-2 text-xs font-black text-[#070b14] hover:bg-[#e6b022] transition shadow-lg"
+                    className="rounded-xl bg-blue-600 dark:bg-[#ffc72c] px-5 py-2 text-xs font-black text-white dark:text-[#070b14] hover:opacity-90 transition shadow-lg"
                   >
                     {addingCoach ? 'Adding Coach...' : 'Add Coach to Fleet'}
                   </button>
                 </div>
               </form>
-            </div>
-          </div>
-        )}
-
-        {/* Waiting List Viewer Drawer / Modal */}
-        {viewingWaitingListFixture && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <div className="w-full max-w-2xl rounded-2xl border border-[#1a2742] bg-[#0a1220] p-6 shadow-2xl space-y-4 max-h-[85vh] flex flex-col">
-              <div className="flex items-center justify-between border-b border-[#1a2742] pb-3 shrink-0">
-                <div>
-                  <span className="text-xs font-bold uppercase text-[#ffc72c]">Matchday Waiting List</span>
-                  <h3 className="text-xl font-black text-white">vs {viewingWaitingListFixture.opponent}</h3>
-                </div>
-                <button
-                  onClick={() => setViewingWaitingListFixture(null)}
-                  className="text-slate-400 hover:text-white"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto divide-y divide-[#1a2742]">
-                {loadingWaitlist ? (
-                  <div className="p-8 text-center text-slate-400">Loading waiting list...</div>
-                ) : waitingList.length === 0 ? (
-                  <div className="p-8 text-center text-slate-500">No supporters on the waiting list yet.</div>
-                ) : (
-                  waitingList.map((item, idx) => (
-                    <div key={item.id} className="p-4 flex items-center justify-between">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-white text-sm">
-                            {idx + 1}. {item.supporter_name}
-                          </span>
-                          <span className="px-2 py-0.5 rounded-full bg-[#ffc72c]/10 text-[#ffc72c] border border-[#ffc72c]/30 text-[10px] font-bold">
-                            {item.seats_requested} seat(s) requested
-                          </span>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400 mt-1">
-                          <span className="flex items-center gap-1">
-                            <Phone className="h-3 w-3 text-emerald-400" />
-                            {item.contact_phone}
-                          </span>
-                          {item.contact_email && (
-                            <span className="flex items-center gap-1">
-                              <Mail className="h-3 w-3 text-blue-400" />
-                              {item.contact_email}
-                            </span>
-                          )}
-                          <span>Pickup: {item.pickup_point}</span>
-                        </div>
-                      </div>
-
-                      <span className="text-[11px] text-slate-500">
-                        {new Date(item.created_at).toLocaleDateString('en-GB', {
-                          day: 'numeric',
-                          month: 'short'
-                        })}
-                      </span>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              <div className="pt-3 border-t border-[#1a2742] flex justify-between items-center shrink-0">
-                <span className="text-xs text-slate-400">
-                  Total waiting:{' '}
-                  <strong className="text-[#ffc72c]">
-                    {waitingList.reduce((s, w) => s + (w.seats_requested || 1), 0)} seats
-                  </strong>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAddingCoachFixture(viewingWaitingListFixture)
-                    setViewingWaitingListFixture(null)
-                  }}
-                  className="rounded-xl bg-[#ffc72c] px-4 py-2 text-xs font-black text-[#070b14] hover:bg-[#e6b022] transition shadow-lg"
-                >
-                  + Add Next Coach
-                </button>
-              </div>
             </div>
           </div>
         )}
