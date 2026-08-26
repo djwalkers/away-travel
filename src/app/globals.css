@@ -23,3 +23,16 @@ body {
   color: #f8fafc;
   min-height: 100vh;
 }
+
+/* Custom Dark Styling for Leaflet Map Popups */
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background-color: #0a1220 !important;
+  color: #f8fafc !important;
+  border: 1px solid #1a2742;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
+}
+
+.leaflet-container {
+  background-color: #070b14 !important;
+}
