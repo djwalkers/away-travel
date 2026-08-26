@@ -121,17 +121,18 @@ export default function SupporterAccountPage() {
     setStatusMessage(null)
 
     try {
+      const updatePayload: Record<string, any> = {
+        full_name: profile.full_name.trim(),
+        phone_number: profile.phone_number.trim(),
+        preferred_pickup: profile.preferred_pickup,
+        membership_number: profile.membership_number.trim(),
+        emergency_contact_name: profile.emergency_contact_name.trim(),
+        emergency_contact_phone: profile.emergency_contact_phone.trim()
+      }
+
       const { error } = await supabase
         .from('profiles')
-        .update({
-          full_name: profile.full_name.trim(),
-          phone_number: profile.phone_number.trim(),
-          preferred_pickup: profile.preferred_pickup,
-          membership_number: profile.membership_number.trim(),
-          emergency_contact_name: profile.emergency_contact_name.trim(),
-          emergency_contact_phone: profile.emergency_contact_phone.trim(),
-          updated_at: new Date().toISOString()
-        })
+        .update(updatePayload)
         .eq('id', user.id)
 
       if (error) throw error
@@ -210,7 +211,6 @@ export default function SupporterAccountPage() {
             </div>
           </div>
 
-          {/* Quick Stat */}
           <div className="rounded-xl border border-slate-200 dark:border-[#1a2742] bg-slate-50 dark:bg-[#0e1726] p-3 text-center sm:text-right">
             <span className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 block">Total Away Bookings</span>
             <span className="text-xl font-black text-blue-600 dark:text-[#ffc72c]">{bookings.length} Seats</span>
@@ -369,7 +369,6 @@ export default function SupporterAccountPage() {
             )}
 
             <div className="grid sm:grid-cols-2 gap-4">
-              {/* Full Name */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
                   <User className="h-3.5 w-3.5 text-blue-600 dark:text-[#ffc72c]" />
@@ -385,7 +384,6 @@ export default function SupporterAccountPage() {
                 />
               </div>
 
-              {/* Mobile Phone */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
                   <Phone className="h-3.5 w-3.5 text-blue-600 dark:text-[#ffc72c]" />
@@ -402,7 +400,6 @@ export default function SupporterAccountPage() {
                 <span className="text-[10px] text-slate-500 block mt-1">Used by stewards to call or WhatsApp if you are running late.</span>
               </div>
 
-              {/* Preferred Pickup Location */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
                   <MapPin className="h-3.5 w-3.5 text-blue-600 dark:text-[#ffc72c]" />
@@ -422,7 +419,6 @@ export default function SupporterAccountPage() {
                 </select>
               </div>
 
-              {/* Official Membership Card Number */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
                   <CreditCard className="h-3.5 w-3.5 text-blue-600 dark:text-[#ffc72c]" />
@@ -439,7 +435,6 @@ export default function SupporterAccountPage() {
               </div>
             </div>
 
-            {/* Emergency Contact Section */}
             <div className="border-t border-slate-200 dark:border-[#1a2742] pt-4 space-y-3">
               <div className="flex items-center gap-2">
                 <HeartHandshake className="h-4 w-4 text-rose-500" />
@@ -455,7 +450,7 @@ export default function SupporterAccountPage() {
                     type="text"
                     value={profile.emergency_contact_name}
                     onChange={(e) => setProfile({ ...profile, emergency_contact_name: e.target.value })}
-                    placeholder="e.g. Sarah Walker (Partner)"
+                    placeholder="e.g. Next of Kin"
                     className="w-full rounded-xl border border-slate-200 dark:border-[#1a2742] bg-slate-50 dark:bg-[#070b14] px-3.5 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-[#ffc72c]"
                   />
                 </div>
@@ -473,7 +468,6 @@ export default function SupporterAccountPage() {
               </div>
             </div>
 
-            {/* Submit */}
             <div className="pt-2 flex justify-end">
               <button
                 type="submit"
