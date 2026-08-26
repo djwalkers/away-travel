@@ -23,7 +23,9 @@ import {
   Sparkles,
   PieChart,
   Loader2,
-  ExternalLink
+  ExternalLink,
+  MapPin,
+  X
 } from 'lucide-react'
 
 // Stadium Distance Table for Club Mileage Aggregation
@@ -212,6 +214,8 @@ export default function CommitteeHubPage() {
       ? `🎟️ Fares: £${Number(adultTier.standard_price).toFixed(2)} (Members: £${Number(adultTier.member_price).toFixed(2)})`
       : '🎟️ Official Subsidised Supporter Fares'
 
+    const siteUrl = typeof window !== 'undefined' ? window.location.origin : 'https://saloptravel.vercel.app'
+
     return `🚌 *SHREWSBURY TOWN AWAY TRAVEL UPDATE*\n` +
       `⚽ *vs ${fixture.opponent}* (${fixture.venue})\n` +
       `📅 ${matchDateStr} | Kickoff: ${fixture.kickoff_time?.slice(0, 5) || '15:00'}\n` +
@@ -219,7 +223,7 @@ export default function CommitteeHubPage() {
       `📊 *Coach Availability:*\n${coachLines}\n` +
       `${priceLine}\n` +
       `⚡ Shropshire Pickups: Croud Meadow, Harlescott, Telford, Whitchurch, Oswestry\n\n` +
-      `👉 *Book Seats Online:* ${window?.location?.origin || 'https://saloptravel.vercel.app'}/fixture/${fixture.id}\n` +
+      `👉 *Book Seats Online:* ${siteUrl}/fixture/${fixture.id}\n` +
       `🔵 *Floreat Salopia!*`
   }
 
@@ -324,7 +328,6 @@ export default function CommitteeHubPage() {
         {/* TAB 1: SEASON ANALYTICS & OCCUPANCY KPIS */}
         {activeTab === 'analytics' && (
           <div className="space-y-6">
-            {/* Top 4 KPI Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="rounded-2xl border border-slate-200 dark:border-[#1a2742] bg-white dark:bg-[#0a1220] p-5 shadow-lg space-y-1">
                 <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400">Total Supporters Carried</span>
@@ -363,7 +366,6 @@ export default function CommitteeHubPage() {
               </div>
             </div>
 
-            {/* Popular Pickup Stops Breakdown */}
             <div className="rounded-2xl border border-slate-200 dark:border-[#1a2742] bg-white dark:bg-[#0a1220] p-6 shadow-xl space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#1a2742] pb-3">
                 <h3 className="font-bold text-slate-900 dark:text-white text-sm flex items-center gap-2">
@@ -482,7 +484,6 @@ export default function CommitteeHubPage() {
                       <button
                         onClick={() => {
                           setPromotingEntry(item)
-                          // Auto select first coach for this fixture
                           const fix = fixtures.find((f) => f.id === item.fixture_id)
                           if (fix?.coaches?.[0]) setTargetCoachId(fix.coaches[0].id)
                         }}
@@ -499,7 +500,7 @@ export default function CommitteeHubPage() {
           </div>
         )}
 
-        {/* TAB 3: SOCIAL & WHATSAPP BROADCAST COPY GENERATOR */}
+        {/* TAB 3: SOCIAL & WHATSAPP BROADCAST */}
         {activeTab === 'broadcast' && (
           <div className="grid md:grid-cols-3 gap-6">
             <div className="md:col-span-1 space-y-4">
@@ -566,7 +567,7 @@ export default function CommitteeHubPage() {
           </div>
         )}
 
-        {/* TAB 4: TRIP FINANCIALS & P&L RECONCILIATION */}
+        {/* TAB 4: TRIP FINANCIALS & P&L */}
         {activeTab === 'pl' && (
           <div className="space-y-6">
             <div className="grid grid-cols-3 gap-4">
@@ -643,10 +644,18 @@ export default function CommitteeHubPage() {
         {promotingEntry && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
             <div className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-[#1a2742] bg-white dark:bg-[#0a1220] p-6 shadow-2xl space-y-4">
-              <div className="border-b border-slate-100 dark:border-[#1a2742] pb-3">
-                <span className="text-xs font-bold uppercase text-blue-600 dark:text-[#ffc72c]">1-Click Waitlist Promotion</span>
-                <h3 className="text-lg font-black text-slate-900 dark:text-white">Promote {promotingEntry.supporter_name}</h3>
-                <p className="text-xs text-slate-500 mt-0.5">vs {promotingEntry.fixtures?.opponent} ({promotingEntry.seats_requested} seat(s))</p>
+              <div className="border-b border-slate-100 dark:border-[#1a2742] pb-3 flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-bold uppercase text-blue-600 dark:text-[#ffc72c]">1-Click Waitlist Promotion</span>
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white">Promote {promotingEntry.supporter_name}</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">vs {promotingEntry.fixtures?.opponent} ({promotingEntry.seats_requested} seat(s))</p>
+                </div>
+                <button
+                  onClick={() => setPromotingEntry(null)}
+                  className="text-slate-400 hover:text-white"
+                >
+                  <X className="h-5 w-5" />
+                </button>
               </div>
 
               <form onSubmit={handlePromoteSupporter} className="space-y-4">
