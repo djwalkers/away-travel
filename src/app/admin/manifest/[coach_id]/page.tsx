@@ -115,7 +115,6 @@ export default function StewardManifestPage() {
     const now = updatedStatus ? new Date().toISOString() : null
     setNetworkError(null)
 
-    // Optimistic Update
     setBookings((prev) =>
       prev.map((b) => (b.id === booking.id ? { ...b, is_boarded: updatedStatus } : b))
     )
@@ -126,24 +125,35 @@ export default function StewardManifestPage() {
       .eq('id', booking.id)
 
     if (error) {
-      // Rollback on network failure
       setBookings((prev) =>
         prev.map((b) => (b.id === booking.id ? { ...b, is_boarded: previousStatus } : b))
       )
-      setNetworkError(`Failed to update boarding status for ${booking.passenger_name}. Please check connection and retry.`)
+      setNetworkError(`Failed to update boarding status for ${booking.passenger_name}. Please retry.`)
       setTimeout(() => setNetworkError(null), 5000)
     }
   }
 
+  // Optimistic cash collection toggle with error rollback
   const markCashPaid = async (booking: Booking) => {
+    const previousStatus = booking.payment_status
+    setNetworkError(null)
+
     setBookings((prev) =>
       prev.map((b) => (b.id === booking.id ? { ...b, payment_status: 'paid' } : b))
     )
 
-    await supabase
+    const { error } = await supabase
       .from('bookings')
       .update({ payment_status: 'paid' })
       .eq('id', booking.id)
+
+    if (error) {
+      setBookings((prev) =>
+        prev.map((b) => (b.id === booking.id ? { ...b, payment_status: previousStatus } : b))
+      )
+      setNetworkError(`Failed to mark payment for ${booking.passenger_name}. Please retry.`)
+      setTimeout(() => setNetworkError(null), 5000)
+    }
   }
 
   const handleMarkNoShow = async (booking: Booking) => {
@@ -474,7 +484,6 @@ export default function StewardManifestPage() {
                         : 'border-salop-border bg-salop-card shadow-sm'
                     }`}
                   >
-                    {/* Left: Checkbox & Passenger Details */}
                     <div className="flex items-start sm:items-center gap-3.5">
                       <button
                         type="button"
@@ -518,7 +527,6 @@ export default function StewardManifestPage() {
                       </div>
                     </div>
 
-                    {/* Right: 44x44px Matchday Accessible Touch Targets */}
                     <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-salop-border">
                       {hasValidPhone ? (
                         <div className="flex items-center gap-2">
