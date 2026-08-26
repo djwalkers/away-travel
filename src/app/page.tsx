@@ -10,7 +10,11 @@ import {
   User,
   ShieldAlert,
   Compass,
-  Bus
+  Bus,
+  CreditCard,
+  CheckCircle2,
+  Sparkles,
+  ShieldCheck
 } from 'lucide-react'
 
 export const revalidate = 0
@@ -62,7 +66,7 @@ export default async function HomePage() {
 
   return (
     <main className="min-h-screen bg-salop-night text-slate-900 dark:text-slate-100 p-6 md:p-12 transition-colors">
-      <div className="max-w-5xl mx-auto space-y-8">
+      <div className="max-w-5xl mx-auto space-y-10">
         
         {/* Header with Shrewsbury Town Crest & Theme Toggle */}
         <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-salop-border pb-6">
@@ -135,19 +139,79 @@ export default async function HomePage() {
               </div>
             )}
 
-            {/* Light / Dark Mode Toggle */}
             <ThemeToggle />
           </div>
         </header>
 
-        {/* Fixtures Section */}
+        {/* HERO / WELCOME & HOW IT WORKS OVERVIEW */}
+        <section className="rounded-3xl border border-salop-border bg-salop-card p-6 md:p-8 shadow-xl space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div className="inline-flex items-center gap-1.5 text-xs font-bold text-salop-blue dark:text-[#ffc72c] uppercase tracking-wider mb-1">
+                <Sparkles className="h-3.5 w-3.5" />
+                Follow Salop On The Road
+              </div>
+              <h2 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white">
+                Hassle-Free Official Supporter Travel
+              </h2>
+              <p className="text-xs md:text-sm text-slate-600 dark:text-slate-400 mt-1 max-w-2xl">
+                Reliable executive coach travel for every Shrewsbury Town away fixture. Direct stadium drop-offs, convenient Shropshire pickup points, and zero booking fees.
+              </p>
+            </div>
+
+            {!user && (
+              <Link
+                href="/register"
+                className="shrink-0 inline-flex items-center gap-2 rounded-2xl bg-salop-blue dark:bg-[#ffc72c] px-5 py-3 text-xs font-black text-white dark:text-[#070b14] hover:opacity-90 transition shadow-lg"
+              >
+                Join & Save on Fares
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            )}
+          </div>
+
+          {/* 3 Step Process */}
+          <div className="grid sm:grid-cols-3 gap-4 pt-4 border-t border-salop-border">
+            <div className="rounded-2xl border border-salop-border bg-salop-surface p-4 space-y-2">
+              <div className="h-8 w-8 rounded-xl bg-blue-500/10 text-salop-blue flex items-center justify-center font-black text-sm">
+                1
+              </div>
+              <h3 className="font-bold text-sm text-slate-900 dark:text-white">Pick Stop & Seats</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Choose your local stop across Shropshire (Croud Meadow, Harlescott, Telford, Whitchurch, Oswestry).
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-salop-border bg-salop-surface p-4 space-y-2">
+              <div className="h-8 w-8 rounded-xl bg-amber-500/10 text-amber-600 dark:text-[#ffc72c] flex items-center justify-center font-black text-sm">
+                2
+              </div>
+              <h3 className="font-bold text-sm text-slate-900 dark:text-white">Flexible Payments</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Pay securely online with card or simply reserve your seat and pay cash to the steward on matchday.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-salop-border bg-salop-surface p-4 space-y-2">
+              <div className="h-8 w-8 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-black text-sm">
+                3
+              </div>
+              <h3 className="font-bold text-sm text-slate-900 dark:text-white">Track the 92</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Show your instant digital boarding pass, travel with fellow fans, and log stadiums on your 92 passport map.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* FIXTURES SECTION */}
         <section className="space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <Bus className="h-5 w-5 text-salop-blue dark:text-[#ffc72c]" />
               Upcoming Away Fixtures
             </h2>
-            <span className="text-xs text-slate-500 dark:text-slate-400">Departing from Shrewsbury</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400">Departing from Shropshire</span>
           </div>
 
           {!fixtures || fixtures.length === 0 ? (
